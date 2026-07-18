@@ -132,6 +132,7 @@ def run_seeds(model_name: str, cfg: Config | None = None, seeds=None) -> dict:
 # Persistence & reporting
 # ---------------------------------------------------------------------------
 def save_results(result: dict, model_name: str, results_dir: str) -> str:
+    """Write a run_seeds result dict to `results_dir/<model_name>.json`; return the path."""
     os.makedirs(results_dir, exist_ok=True)
     path = os.path.join(results_dir, f"{model_name}.json")
     with open(path, "w") as f:
@@ -140,6 +141,7 @@ def save_results(result: dict, model_name: str, results_dir: str) -> str:
 
 
 def load_results(model_name: str, results_dir: str) -> dict:
+    """Load a previously saved run_seeds result dict from `results_dir/<model_name>.json`."""
     with open(os.path.join(results_dir, f"{model_name}.json")) as f:
         return json.load(f)
 
