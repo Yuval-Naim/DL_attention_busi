@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+# Modernized for torch>=2 (BUSI fork): F.upsample->F.interpolate (align_corners=False),
+# F.sigmoid->torch.sigmoid. Behavior preserved. Original: Oktay et al. (MIT).
 from models.networks_other import init_weights
 
 
@@ -93,14 +95,14 @@ class _GridAttentionBlockND(nn.Module):
 
         # g (b, c, t', h', w') -> phi_g (b, i_c, t', h', w')
         #  Relu(theta_x + phi_g + bias) -> f = (b, i_c, thw) -> (b, i_c, t/s1, h/s2, w/s3)
-        phi_g = F.upsample(self.phi(g), size=theta_x_size[2:], mode=self.upsample_mode)
+        phi_g = F.interpolate(self.phi(g), size=theta_x_size[2:], mode=self.upsample_mode, align_corners=False)
         f = F.relu(theta_x + phi_g, inplace=True)
 
         #  psi^T * f -> (b, psi_i_c, t/s1, h/s2, w/s3)
-        sigm_psi_f = F.sigmoid(self.psi(f))
+        sigm_psi_f = torch.sigmoid(self.psi(f))
 
         # upsample the attentions and multiply
-        sigm_psi_f = F.upsample(sigm_psi_f, size=input_size[2:], mode=self.upsample_mode)
+        sigm_psi_f = F.interpolate(sigm_psi_f, size=input_size[2:], mode=self.upsample_mode, align_corners=False)
         y = sigm_psi_f.expand_as(x) * x
         W_y = self.W(y)
 
@@ -118,14 +120,14 @@ class _GridAttentionBlockND(nn.Module):
 
         # g (b, c, t', h', w') -> phi_g (b, i_c, t', h', w')
         #  Relu(theta_x + phi_g + bias) -> f = (b, i_c, thw) -> (b, i_c, t/s1, h/s2, w/s3)
-        phi_g = F.upsample(self.phi(g), size=theta_x_size[2:], mode=self.upsample_mode)
+        phi_g = F.interpolate(self.phi(g), size=theta_x_size[2:], mode=self.upsample_mode, align_corners=False)
         f = F.softplus(theta_x + phi_g)
 
         #  psi^T * f -> (b, psi_i_c, t/s1, h/s2, w/s3)
-        sigm_psi_f = F.sigmoid(self.psi(f))
+        sigm_psi_f = torch.sigmoid(self.psi(f))
 
         # upsample the attentions and multiply
-        sigm_psi_f = F.upsample(sigm_psi_f, size=input_size[2:], mode=self.upsample_mode)
+        sigm_psi_f = F.interpolate(sigm_psi_f, size=input_size[2:], mode=self.upsample_mode, align_corners=False)
         y = sigm_psi_f.expand_as(x) * x
         W_y = self.W(y)
 
@@ -144,7 +146,7 @@ class _GridAttentionBlockND(nn.Module):
 
         # g (b, c, t', h', w') -> phi_g (b, i_c, t', h', w')
         #  Relu(theta_x + phi_g + bias) -> f = (b, i_c, thw) -> (b, i_c, t/s1, h/s2, w/s3)
-        phi_g = F.upsample(self.phi(g), size=theta_x_size[2:], mode=self.upsample_mode)
+        phi_g = F.interpolate(self.phi(g), size=theta_x_size[2:], mode=self.upsample_mode, align_corners=False)
         f = F.relu(theta_x + phi_g, inplace=True)
 
         #  psi^T * f -> (b, psi_i_c, t/s1, h/s2, w/s3)
@@ -152,7 +154,7 @@ class _GridAttentionBlockND(nn.Module):
         sigm_psi_f = F.softmax(f, dim=2).view(batch_size, 1, *theta_x.size()[2:])
 
         # upsample the attentions and multiply
-        sigm_psi_f = F.upsample(sigm_psi_f, size=input_size[2:], mode=self.upsample_mode)
+        sigm_psi_f = F.interpolate(sigm_psi_f, size=input_size[2:], mode=self.upsample_mode, align_corners=False)
         y = sigm_psi_f.expand_as(x) * x
         W_y = self.W(y)
 
@@ -305,7 +307,7 @@ class _GridAttentionBlockND_TORR(nn.Module):
         theta_x_size = theta_x.size()
 
         #  nl(theta.x + phi.g + bias) -> f = (b, i_c, t/s1, h/s2, w/s3)
-        phi_g = F.upsample(self.phi(g), size=theta_x_size[2:], mode=self.upsample_mode)
+        phi_g = F.interpolate(self.phi(g), size=theta_x_size[2:], mode=self.upsample_mode, align_corners=False)
 
         f = theta_x + phi_g
         f = self.nl1(f)
@@ -344,12 +346,12 @@ class _GridAttentionBlockND_TORR(nn.Module):
             sigm_psi_f = sigm_psi_f.view(batch_size, 1, *theta_x_size[2:])
 
         elif self.mode == 'concatenation_sigmoid':
-            sigm_psi_f = F.sigmoid(psi_f)
+            sigm_psi_f = torch.sigmoid(psi_f)
         else:
             raise NotImplementedError
 
         # sigm_psi_f is attention map! upsample the attentions and multiply
-        sigm_psi_f = F.upsample(sigm_psi_f, size=input_size[2:], mode=self.upsample_mode)
+        sigm_psi_f = F.interpolate(sigm_psi_f, size=input_size[2:], mode=self.upsample_mode, align_corners=False)
         y = sigm_psi_f.expand_as(x) * x
         W_y = self.W(y)
 
