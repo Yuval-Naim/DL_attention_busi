@@ -112,8 +112,22 @@ def _make_attention(kind, in_size, gate_size):
 class AttentionUNet2D(nn.Module):
     """2D U-Net with deep supervision and a swappable skip-attention module.
 
-    Faithful 2D port of the authors' `unet_CT_single_att_dsv_3D`: attention on
-    skips at levels 2/3/4; level-1 skip passes through directly.
+    Faithful 2D port of the authors' `unet_CT_single_att_dsv_3D`.
+
+    Design justifications:
+    - **Attention on skips 2/3/4, not 1.** The gating signal comes from a coarser
+      decoder level, so it is meaningful for the deeper skips; the full-resolution
+      level-1 skip is left ungated (as in the authors' single-attention net) — a
+      gate there is the most expensive and adds little, since coarse gating can't
+      localise at full resolution.
+    - **`is_deconv=True` (ConvTranspose upsampling).** The authors' `unetUp`
+      concatenates the skip with the upsampled feature and feeds a conv sized for
+      *halved* channels; only ConvTranspose (which halves channels on upsample)
+      makes those channel counts line up. Plain bilinear upsampling would mismatch.
+    - **Deep supervision.** Auxiliary 1x1-conv heads at each decoder level are
+      upsampled to full resolution and fused. This injects gradient at multiple
+      scales (helping small lesions) and is part of the paper's contribution, so
+      we keep it for fidelity; it is toggleable via `deep_supervision`.
     """
 
     def __init__(self, in_channels=1, n_classes=2, feature_scale=4,
