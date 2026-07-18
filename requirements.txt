@@ -1,0 +1,14 @@
+# Core deep-learning stack. Versions are lower-bounds during development;
+# pin to exact resolved versions at submission time (PLAN.md T9.2).
+torch>=2.6
+torchvision>=0.21
+numpy>=1.26,<3
+albumentations>=1.4
+opencv-python-headless>=4.9
+scikit-learn>=1.4
+matplotlib>=3.8
+tqdm>=4.66
+pytest>=8.0
+
+# Optional: dataset download on Colab
+# kaggle>=1.6
