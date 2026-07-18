@@ -52,22 +52,44 @@ class SoftDiceLoss2D(nn.Module):
         return 1.0 - dice.mean()
 
 
-def focal_tversky_loss(logits, target_long, alpha=0.7, beta=0.3, gamma=0.75):
-    """Focal-Tversky loss (STRETCH — full implementation lands in Stage 8 / T8.4).
+def focal_tversky_loss(logits, target_long, alpha=0.7, beta=0.3, gamma=0.75, smooth=1e-6):
+    """Focal-Tversky loss on the lesion class (STRETCH).
 
-    Rationale (for when we add it): the Tversky index generalises Dice by
-    weighting false negatives (`alpha`) vs false positives (`beta`) separately;
-    with `alpha > beta` it penalises *missed* lesion pixels harder — useful for
-    small lesions. The focal exponent `gamma` further focuses training on hard,
-    low-overlap cases. Deferred so the Core milestone stays lean.
+    The Tversky index generalises Dice by weighting false negatives (`alpha`) and
+    false positives (`beta`) separately; with `alpha > beta` it penalises *missed*
+    lesion pixels harder — helpful for small lesions. The focal exponent `gamma`
+    concentrates training on hard, low-overlap cases:
+
+        TI  = TP / (TP + alpha*FN + beta*FP)     (per image, lesion class)
+        FTL = mean_over_batch (1 - TI) ** gamma
+
+    Computed on the softmax lesion probability (soft, differentiable).
     """
-    raise NotImplementedError("Focal-Tversky is a stretch goal (PLAN.md T8.4)")
+    probs = F.softmax(logits, dim=1)
+    p1 = probs[:, 1]                              # (B, H, W) lesion probability
+    g1 = (target_long == 1).float()
+    tp = (p1 * g1).sum(dim=(1, 2))
+    fn = (g1 * (1.0 - p1)).sum(dim=(1, 2))
+    fp = (p1 * (1.0 - g1)).sum(dim=(1, 2))
+    ti = (tp + smooth) / (tp + alpha * fn + beta * fp + smooth)
+    return ((1.0 - ti) ** gamma).mean()
 
 
-def get_loss(name: str, n_classes: int = 2):
-    """Build a loss by name (driven by Config.loss_name)."""
+class FocalTverskyLoss(nn.Module):
+    """nn.Module wrapper around `focal_tversky_loss` (holds alpha/beta/gamma)."""
+
+    def __init__(self, alpha=0.7, beta=0.3, gamma=0.75):
+        super().__init__()
+        self.alpha, self.beta, self.gamma = alpha, beta, gamma
+
+    def forward(self, logits, target):
+        return focal_tversky_loss(logits, target, self.alpha, self.beta, self.gamma)
+
+
+def get_loss(name: str, n_classes: int = 2, ft_alpha=0.7, ft_beta=0.3, ft_gamma=0.75):
+    """Build a loss by name (driven by Config.loss_name + Config.ft_* params)."""
     if name == "dice":
         return SoftDiceLoss2D(n_classes=n_classes)
     if name == "focal_tversky":
-        raise NotImplementedError("Focal-Tversky is a stretch goal (PLAN.md T8.4)")
+        return FocalTverskyLoss(alpha=ft_alpha, beta=ft_beta, gamma=ft_gamma)
     raise ValueError(f"unknown loss name: {name!r}")

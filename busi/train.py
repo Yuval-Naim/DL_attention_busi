@@ -117,7 +117,8 @@ def fit(model, train_loader, val_loader, cfg) -> dict:
     """
     device = get_device(cfg.device)
     model.to(device)
-    loss_fn = get_loss(cfg.loss_name, cfg.n_classes)
+    loss_fn = get_loss(cfg.loss_name, cfg.n_classes,
+                       ft_alpha=cfg.ft_alpha, ft_beta=cfg.ft_beta, ft_gamma=cfg.ft_gamma)
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="max", patience=cfg.lr_patience)

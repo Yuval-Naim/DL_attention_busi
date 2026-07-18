@@ -62,7 +62,28 @@ class CBAM2D(nn.Module):
 
 
 class scSE2D(nn.Module):
-    """Concurrent Spatial and Channel Squeeze-&-Excitation (STRETCH — Stage 8)."""
+    """Concurrent Spatial and Channel Squeeze-&-Excitation (Roy et al., 2018).
+
+    Runs two lightweight recalibrations in parallel and adds them:
+    - **cSE** (channel SE): global-pool -> bottleneck MLP -> per-channel gate.
+    - **sSE** (spatial SE): 1x1 conv -> per-pixel gate.
+    Designed for medical segmentation and cheaper than CBAM. The returned spatial
+    map is the sSE gate (used for interpretability).
+    """
 
     def __init__(self, channels: int, reduction: int = 8):
-        raise NotImplementedError("scSE is a stretch goal (PLAN.md T8.1)")
+        super().__init__()
+        mid = max(channels // reduction, 1)
+        self.cse = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(channels, mid, 1), nn.ReLU(inplace=True),
+            nn.Conv2d(mid, channels, 1))
+        self.sse = nn.Conv2d(channels, 1, 1)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                init_weights(m, init_type="kaiming")
+
+    def forward(self, x, g=None):
+        cse = torch.sigmoid(self.cse(x))     # (B, C, 1, 1) channel gate
+        sse = torch.sigmoid(self.sse(x))     # (B, 1, H, W) spatial gate
+        return x * cse + x * sse, sse

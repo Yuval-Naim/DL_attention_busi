@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from busi.losses import SoftDiceLoss2D, get_loss
+from busi.losses import SoftDiceLoss2D, FocalTverskyLoss, focal_tversky_loss, get_loss
 
 
 def _target(b=2, h=8, w=8):
@@ -58,5 +58,26 @@ def test_loss_range():
 
 def test_get_loss():
     assert isinstance(get_loss("dice"), SoftDiceLoss2D)
-    with pytest.raises(NotImplementedError):
-        get_loss("focal_tversky")
+    assert isinstance(get_loss("focal_tversky"), FocalTverskyLoss)
+    with pytest.raises(ValueError):
+        get_loss("nope")
+
+
+# --- Focal-Tversky (stretch) ----------------------------------------------
+def test_focal_tversky_perfect():
+    t = _target()
+    assert focal_tversky_loss(_logits_for(t, correct=True), t).item() < 0.05
+
+
+def test_focal_tversky_worst():
+    t = _target()
+    assert focal_tversky_loss(_logits_for(t, correct=False), t).item() > 0.9
+
+
+def test_focal_tversky_range_and_grad():
+    t = _target()
+    logits = torch.randn(2, 2, 8, 8, requires_grad=True)
+    loss = FocalTverskyLoss()(logits, t)
+    assert 0.0 <= loss.item() <= 1.0
+    loss.backward()
+    assert logits.grad is not None and torch.isfinite(logits.grad).all()
