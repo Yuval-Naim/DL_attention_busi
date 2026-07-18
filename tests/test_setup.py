@@ -12,12 +12,12 @@ def test_config_defaults_valid():
     cfg = Config()
     assert cfg.model_name in MODEL_CHOICES
     assert cfg.n_classes == 2
-    assert cfg.experiment_name == "attention_unet_dice_seed42"
+    assert cfg.experiment_name == "attention_unet_dice_ce_seed42"
 
 
 def test_config_override_and_validation():
     cfg = Config(model_name="cbam_unet", seed=1)
-    assert cfg.experiment_name == "cbam_unet_dice_seed1"
+    assert cfg.experiment_name == "cbam_unet_dice_ce_seed1"
     # invalid model name must raise
     import pytest
     with pytest.raises(ValueError):

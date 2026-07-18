@@ -3,7 +3,8 @@
 import pytest
 import torch
 
-from busi.losses import SoftDiceLoss2D, FocalTverskyLoss, focal_tversky_loss, get_loss
+from busi.losses import (SoftDiceLoss2D, DiceCELoss, FocalTverskyLoss,
+                         focal_tversky_loss, get_loss)
 
 
 def _target(b=2, h=8, w=8):
@@ -57,10 +58,22 @@ def test_loss_range():
 
 
 def test_get_loss():
+    assert isinstance(get_loss("dice_ce"), DiceCELoss)
     assert isinstance(get_loss("dice"), SoftDiceLoss2D)
     assert isinstance(get_loss("focal_tversky"), FocalTverskyLoss)
     with pytest.raises(ValueError):
         get_loss("nope")
+
+
+def test_dice_ce_trains_signal():
+    # Dice+CE should give a finite, positive loss and gradients (the escape from
+    # the pure-Dice cold-start collapse is validated in the run scripts).
+    t = _target()
+    logits = torch.randn(2, 2, 8, 8, requires_grad=True)
+    loss = DiceCELoss()(logits, t)
+    assert torch.isfinite(loss) and loss.item() > 0
+    loss.backward()
+    assert logits.grad is not None and torch.isfinite(logits.grad).all()
 
 
 # --- Focal-Tversky (stretch) ----------------------------------------------

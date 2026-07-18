@@ -21,7 +21,7 @@ import json
 
 # --- Allowed choices (validated in Config.__post_init__) --------------------
 MODEL_CHOICES = ("unet", "attention_unet", "cbam_unet", "scse_unet")
-LOSS_CHOICES = ("dice", "focal_tversky")
+LOSS_CHOICES = ("dice_ce", "dice", "focal_tversky")
 DEVICE_CHOICES = ("auto", "cuda", "mps", "cpu")
 
 
@@ -33,7 +33,7 @@ class Config:
     # WHAT TO RUN  (change these most often)
     # ========================================================================
     model_name: str = "attention_unet"   # one of MODEL_CHOICES
-    loss_name: str = "dice"               # one of LOSS_CHOICES
+    loss_name: str = "dice_ce"            # one of LOSS_CHOICES (dice_ce: pure dice collapses on BUSI)
     seed: int = 42                        # single-run seed
 
     # ========================================================================
@@ -62,7 +62,7 @@ class Config:
     weight_decay: float = 1e-5
     lr_patience: int = 8                  # ReduceLROnPlateau patience (on val Dice)
     early_stop_patience: int = 15         # stop if val Dice hasn't improved
-    num_workers: int = 2                  # DataLoader workers (keep low on Colab/MPS)
+    num_workers: int = 0                  # 0 avoids macOS 'spawn'/notebook multiprocessing issues; dataset is small so no throughput cost
 
     # ========================================================================
     # AUGMENTATION  (train split only; applied identically to image + mask)

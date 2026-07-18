@@ -86,8 +86,32 @@ class FocalTverskyLoss(nn.Module):
         return focal_tversky_loss(logits, target, self.alpha, self.beta, self.gamma)
 
 
+class DiceCELoss(nn.Module):
+    """Soft Dice + Cross-Entropy (the default training loss).
+
+    WHY this is the default (empirical, see the report's challenges): pure soft
+    Dice **fails to train from scratch on BUSI** — the model collapses to
+    predicting all-background (val Dice stuck at 0) because Dice's gradient
+    vanishes when the foreground prediction is near-zero. Adding cross-entropy
+    supplies a strong per-pixel gradient that breaks the collapse, while Dice
+    still handles the lesion/background imbalance. (Dice+CE reached ~0.62 val
+    Dice in 12 epochs where pure Dice reached 0.00.)
+    """
+
+    def __init__(self, n_classes: int = 2, dice_weight: float = 1.0, ce_weight: float = 1.0):
+        super().__init__()
+        self.dice = SoftDiceLoss2D(n_classes=n_classes)
+        self.dice_weight, self.ce_weight = dice_weight, ce_weight
+
+    def forward(self, logits, target):
+        return self.dice_weight * self.dice(logits, target) + \
+            self.ce_weight * F.cross_entropy(logits, target)
+
+
 def get_loss(name: str, n_classes: int = 2, ft_alpha=0.7, ft_beta=0.3, ft_gamma=0.75):
     """Build a loss by name (driven by Config.loss_name + Config.ft_* params)."""
+    if name == "dice_ce":
+        return DiceCELoss(n_classes=n_classes)
     if name == "dice":
         return SoftDiceLoss2D(n_classes=n_classes)
     if name == "focal_tversky":
