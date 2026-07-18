@@ -147,9 +147,13 @@ class AttentionUNet2D(nn.Module):
         self.conv4 = unetConv2(f[2], f[3], is_batchnorm)
         self.maxpool4 = nn.MaxPool2d(2)
 
-        # Bottleneck + gating signal
+        # Bottleneck. The gating signal is only meaningful for the additive gate
+        # (CBAM/scSE are self-attention and ignore it) — so we only build it then,
+        # otherwise its parameters would receive no gradient.
         self.center = unetConv2(f[3], f[4], is_batchnorm)
-        self.gating = UnetGridGatingSignal2D(f[4], f[4], kernel_size=1, is_batchnorm=is_batchnorm)
+        self.uses_gating = (attention == "gate")
+        if self.uses_gating:
+            self.gating = UnetGridGatingSignal2D(f[4], f[4], kernel_size=1, is_batchnorm=is_batchnorm)
 
         # Swappable attention on skips 2/3/4
         self.attentionblock2 = _make_attention(attention, f[1], f[2])
@@ -183,7 +187,7 @@ class AttentionUNet2D(nn.Module):
         conv3 = self.conv3(self.maxpool2(conv2))
         conv4 = self.conv4(self.maxpool3(conv3))
         center = self.center(self.maxpool4(conv4))
-        gating = self.gating(center)
+        gating = self.gating(center) if self.uses_gating else None
 
         g_conv4, att4 = self.attentionblock4(conv4, gating)
         up4 = self.up_concat4(g_conv4, center)
