@@ -69,10 +69,13 @@ If Python 3.13 gives you install trouble, use a 3.11 or 3.12 virtualenv.
   from busi import experiment as E
   E.run_seeds("attention_unet", cfg=Config(epochs=3), seeds=[42])
   ```
-- **Full runs (GPU):** open `project.ipynb` on Google Colab, run the bootstrap
-  cell (clone your repo, mount Drive with the data), then the experiment cells.
-  `MODELS` already lists all four variants (`unet`, `attention_unet`, `cbam_unet`,
-  `scse_unet`). Everything is controlled from `busi/config.py`.
+- **Full runs (GPU):** open `project.ipynb` on Google Colab. Run the bootstrap
+  cell (clones your repo), then the **Data cell auto-downloads BUSI from Kaggle** —
+  one-time: create a Kaggle token (kaggle.com → Settings → API → Create New Token)
+  and paste its contents into a Colab Secret named `KAGGLE_JSON` (no Google Drive
+  needed). Then run the experiment cells. `MODELS` already lists all four variants
+  (`unet`, `attention_unet`, `cbam_unet`, `scse_unet`). Everything is controlled
+  from `busi/config.py`.
 
 ## 5. What's left to do
 
