@@ -65,11 +65,24 @@ def build_loaders(cfg: Config):
 # ---------------------------------------------------------------------------
 # Single run / multi-seed
 # ---------------------------------------------------------------------------
-def run_experiment(cfg: Config) -> dict:
+def run_experiment(cfg: Config, force: bool = False) -> dict:
     """Train one model (one seed), select the best on val Dice, evaluate on test.
 
-    Returns {config, best_val_metric, test (metrics dict), history}.
+    **Resumable & skippable:** if this seed's result JSON already exists it is
+    loaded and returned (skip); otherwise `fit()` resumes from any partial
+    checkpoint left by a crash. Per-seed result is saved to `results_dir` so a
+    re-run continues where it stopped. Returns {config, best_val_metric, test, history}.
     """
+    os.makedirs(cfg.results_dir, exist_ok=True)
+    result_path = os.path.join(cfg.results_dir, f"{cfg.experiment_name}.json")
+    if not force and os.path.exists(result_path):
+        with open(result_path) as f:
+            done = json.load(f)
+        print(f"[{cfg.experiment_name}] SKIP — already done "
+              f"(test dice={done['test']['lesion_dice']:.4f})", flush=True)
+        return done
+
+    print(f"[{cfg.experiment_name}] START", flush=True)
     T.set_seed(cfg.seed)
     train_loader, val_loader, test_loader = build_loaders(cfg)
     model = get_model(cfg.model_name, in_channels=cfg.in_channels,
@@ -80,14 +93,21 @@ def run_experiment(cfg: Config) -> dict:
     device = T.get_device(cfg.device)
     model.load_state_dict(torch.load(fit_out["best_path"], map_location=device))
     test_metrics = T.evaluate(model, test_loader, device)
-    print(f"[{cfg.experiment_name}] TEST  dice={test_metrics['lesion_dice']:.4f}  "
-          f"iou={test_metrics['lesion_iou']:.4f}  spec={test_metrics['specificity']:.3f}", flush=True)
-    return {
-        "config": cfg.to_dict(),
-        "best_val_metric": fit_out["best_metric"],
-        "test": test_metrics,
-        "history": fit_out["history"],
-    }
+    result = {"config": cfg.to_dict(), "best_val_metric": fit_out["best_metric"],
+              "test": test_metrics, "history": fit_out["history"]}
+    with open(result_path, "w") as f:
+        json.dump(result, f, indent=2)
+    # training finished -> drop the resume checkpoint
+    last = os.path.join(cfg.checkpoints_dir, f"{cfg.experiment_name}_last.pt")
+    if os.path.exists(last):
+        try:
+            os.remove(last)
+        except OSError:
+            pass
+    print(f"[{cfg.experiment_name}] TEST dice={test_metrics['lesion_dice']:.4f} "
+          f"iou={test_metrics['lesion_iou']:.4f} spec={test_metrics['specificity']:.3f} "
+          f"-> saved {result_path}", flush=True)
+    return result
 
 
 def _cfg_for(base: Config, model_name: str, seed: int) -> Config:
@@ -118,7 +138,16 @@ def run_seeds(model_name: str, cfg: Config | None = None, seeds=None) -> dict:
     runs = []
     for i, s in enumerate(seeds, 1):
         print(f"\n===== {model_name}: seed {s} ({i}/{len(seeds)}) =====", flush=True)
-        runs.append(run_experiment(_cfg_for(cfg, model_name, s)))
+        try:
+            runs.append(run_experiment(_cfg_for(cfg, model_name, s)))
+        except Exception as e:                        # a code error in one seed shouldn't kill the batch
+            import traceback
+            print(f"[{model_name} seed {s}] ERROR: {e}", flush=True)
+            traceback.print_exc()
+    runs = [r for r in runs if r]
+    if not runs:
+        print(f"[{model_name}] no successful runs — nothing to aggregate", flush=True)
+        return None
     n_params = sum(p.numel() for p in get_model(
         model_name, in_channels=cfg.in_channels, n_classes=cfg.n_classes,
         feature_scale=cfg.feature_scale, deep_supervision=cfg.deep_supervision).parameters())
@@ -153,6 +182,19 @@ def load_results(model_name: str, results_dir: str) -> dict:
     """Load a previously saved run_seeds result dict from `results_dir/<model_name>.json`."""
     with open(os.path.join(results_dir, f"{model_name}.json")) as f:
         return json.load(f)
+
+
+def collect_results(model_names, results_dir) -> list:
+    """Load whatever per-model aggregate results exist (skipping any not yet run),
+    so the results table/figures work even from a partially-completed sweep."""
+    out = []
+    for m in model_names:
+        p = os.path.join(results_dir, f"{m}.json")
+        if os.path.exists(p):
+            out.append(load_results(m, results_dir))
+        else:
+            print(f"[collect] {m}.json not found (not run yet) — skipping", flush=True)
+    return out
 
 
 def make_results_table(results_list: list[dict]) -> str:

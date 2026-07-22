@@ -62,6 +62,7 @@ class Config:
     weight_decay: float = 1e-5
     lr_patience: int = 8                  # ReduceLROnPlateau patience (on val Dice)
     early_stop_patience: int = 15         # stop if val Dice hasn't improved
+    ckpt_every: int = 1                   # save a resume checkpoint every N epochs (to Drive) — crash safety
     num_workers: int = 0                  # 0 avoids macOS 'spawn'/notebook multiprocessing issues; dataset is small so no throughput cost
 
     # ========================================================================

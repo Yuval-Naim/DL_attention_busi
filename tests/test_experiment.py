@@ -92,6 +92,32 @@ def test_run_seeds(busi_cfg):
     assert os.path.exists(os.path.join(busi_cfg.results_dir, "unet.json"))
 
 
+def test_run_experiment_skips_if_done(busi_cfg):
+    cfg = E._cfg_for(busi_cfg, "unet", seed=42)
+    r1 = E.run_experiment(cfg)
+    r2 = E.run_experiment(cfg)                        # second call must SKIP (result exists)
+    assert r2["test"]["lesion_dice"] == r1["test"]["lesion_dice"]
+
+
+def test_fit_resumes_from_checkpoint(busi_cfg):
+    from busi import train as T, model as M
+    d2 = {**E._cfg_for(busi_cfg, "unet", 42).to_dict(), "epochs": 2}
+    cfg2 = Config(**d2)
+    tr, va, te = E.build_loaders(cfg2)
+    out1 = T.fit(M.get_model("unet", feature_scale=cfg2.feature_scale), tr, va, cfg2)
+    assert len(out1["history"]) == 2                  # ran 2 epochs, wrote <exp>_last.pt
+
+    cfg4 = Config(**{**d2, "epochs": 4})              # same exp name + ckpt dir -> resumes
+    out2 = T.fit(M.get_model("unet", feature_scale=cfg4.feature_scale), tr, va, cfg4)
+    assert len(out2["history"]) == 4                  # 2 resumed + 2 new (not 4 fresh)
+
+
+def test_collect_results_partial(busi_cfg):
+    E.run_seeds("unet", cfg=busi_cfg, seeds=[42])
+    got = E.collect_results(["unet", "attention_unet"], busi_cfg.results_dir)
+    assert len(got) == 1 and got[0]["model"] == "unet"   # attention_unet not run -> skipped
+
+
 def test_save_prediction_figures(busi_cfg):
     cfg = E._cfg_for(busi_cfg, "attention_unet", seed=42)
     out = E.run_experiment(cfg)                       # produces a checkpoint

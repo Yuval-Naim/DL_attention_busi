@@ -112,9 +112,16 @@ def evaluate(model, loader, device) -> dict:
 
 
 def fit(model, train_loader, val_loader, cfg) -> dict:
-    """Full training loop: Adam + ReduceLROnPlateau, early stopping on val Dice,
-    best-checkpointing. Returns history, best metric, and the checkpoint path.
+    """Resumable training loop: Adam + ReduceLROnPlateau, early stopping on val
+    Dice, best-checkpointing. Saves TWO files under cfg.checkpoints_dir (point it
+    at Google Drive on Colab so a crash loses nothing):
+      - `<exp>.pt`      : best weights so far (small)
+      - `<exp>_last.pt` : full resume state (model+optimizer+scheduler+epoch+
+                          history), written every `cfg.ckpt_every` epochs.
+    If `<exp>_last.pt` exists on entry, training RESUMES from it. Returns history,
+    best metric, and the best-weights path.
     """
+    import time
     device = get_device(cfg.device)
     model.to(device)
     loss_fn = get_loss(cfg.loss_name, cfg.n_classes,
@@ -125,10 +132,23 @@ def fit(model, train_loader, val_loader, cfg) -> dict:
 
     os.makedirs(cfg.checkpoints_dir, exist_ok=True)
     best_path = os.path.join(cfg.checkpoints_dir, f"{cfg.experiment_name}.pt")
+    last_path = os.path.join(cfg.checkpoints_dir, f"{cfg.experiment_name}_last.pt")
 
-    best, since_improved, history = -float("inf"), 0, []
-    print(f"[fit] {cfg.experiment_name}: up to {cfg.epochs} epochs on {device}", flush=True)
-    for epoch in range(cfg.epochs):
+    start_epoch, best, since_improved, history = 0, -float("inf"), 0, []
+    if os.path.exists(last_path):                      # ---- RESUME after a crash ----
+        ck = torch.load(last_path, map_location=device)
+        model.load_state_dict(ck["model"])
+        optimizer.load_state_dict(ck["optimizer"])
+        scheduler.load_state_dict(ck["scheduler"])
+        start_epoch = ck["epoch"] + 1
+        best, since_improved, history = ck["best"], ck["since_improved"], ck["history"]
+        print(f"[{cfg.experiment_name}] RESUMING at epoch {start_epoch + 1}/{cfg.epochs} "
+              f"(best val_dice={best:.4f})", flush=True)
+    else:
+        print(f"[fit] {cfg.experiment_name}: up to {cfg.epochs} epochs on {device}", flush=True)
+
+    for epoch in range(start_epoch, cfg.epochs):
+        t0 = time.time()
         train_loss = train_one_epoch(model, train_loader, loss_fn, optimizer, device)
         val = evaluate(model, val_loader, device)
         metric = val["lesion_dice"]
@@ -139,13 +159,20 @@ def fit(model, train_loader, val_loader, cfg) -> dict:
         improved = metric > best or not os.path.exists(best_path)
         if improved:
             best, since_improved = metric, 0
-            torch.save(model.state_dict(), best_path)
+            torch.save(model.state_dict(), best_path)            # best weights (small)
         else:
             since_improved += 1
-        # Per-epoch progress so a long run is observable (not silent).
+
+        # Resume checkpoint to Drive so a crash costs at most cfg.ckpt_every epochs.
+        if (epoch + 1) % max(cfg.ckpt_every, 1) == 0 or (epoch + 1) == cfg.epochs \
+                or since_improved >= cfg.early_stop_patience:
+            torch.save({"model": model.state_dict(), "optimizer": optimizer.state_dict(),
+                        "scheduler": scheduler.state_dict(), "epoch": epoch, "best": best,
+                        "since_improved": since_improved, "history": history}, last_path)
+
         print(f"[{cfg.experiment_name}] ep {epoch + 1}/{cfg.epochs}  "
               f"loss={train_loss:.4f}  val_dice={val['lesion_dice']:.4f}  "
-              f"spec={val['specificity']:.3f}  best={best:.4f}"
+              f"spec={val['specificity']:.3f}  best={best:.4f}  {time.time() - t0:.0f}s"
               f"{'  *saved' if improved else ''}", flush=True)
         if since_improved >= cfg.early_stop_patience:
             print(f"[{cfg.experiment_name}] early stop at epoch {epoch + 1} "
