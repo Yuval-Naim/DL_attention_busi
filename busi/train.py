@@ -127,6 +127,7 @@ def fit(model, train_loader, val_loader, cfg) -> dict:
     best_path = os.path.join(cfg.checkpoints_dir, f"{cfg.experiment_name}.pt")
 
     best, since_improved, history = -float("inf"), 0, []
+    print(f"[fit] {cfg.experiment_name}: up to {cfg.epochs} epochs on {device}", flush=True)
     for epoch in range(cfg.epochs):
         train_loss = train_one_epoch(model, train_loader, loss_fn, optimizer, device)
         val = evaluate(model, val_loader, device)
@@ -135,12 +136,20 @@ def fit(model, train_loader, val_loader, cfg) -> dict:
         scheduler.step(metric)
         history.append({"epoch": epoch, "train_loss": train_loss, **val})
 
-        if metric > best or not os.path.exists(best_path):
+        improved = metric > best or not os.path.exists(best_path)
+        if improved:
             best, since_improved = metric, 0
             torch.save(model.state_dict(), best_path)
         else:
             since_improved += 1
-            if since_improved >= cfg.early_stop_patience:
-                break
+        # Per-epoch progress so a long run is observable (not silent).
+        print(f"[{cfg.experiment_name}] ep {epoch + 1}/{cfg.epochs}  "
+              f"loss={train_loss:.4f}  val_dice={val['lesion_dice']:.4f}  "
+              f"spec={val['specificity']:.3f}  best={best:.4f}"
+              f"{'  *saved' if improved else ''}", flush=True)
+        if since_improved >= cfg.early_stop_patience:
+            print(f"[{cfg.experiment_name}] early stop at epoch {epoch + 1} "
+                  f"(best val_dice={best:.4f})", flush=True)
+            break
 
     return {"history": history, "best_metric": best, "best_path": best_path}

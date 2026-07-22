@@ -80,6 +80,8 @@ def run_experiment(cfg: Config) -> dict:
     device = T.get_device(cfg.device)
     model.load_state_dict(torch.load(fit_out["best_path"], map_location=device))
     test_metrics = T.evaluate(model, test_loader, device)
+    print(f"[{cfg.experiment_name}] TEST  dice={test_metrics['lesion_dice']:.4f}  "
+          f"iou={test_metrics['lesion_iou']:.4f}  spec={test_metrics['specificity']:.3f}", flush=True)
     return {
         "config": cfg.to_dict(),
         "best_val_metric": fit_out["best_metric"],
@@ -113,7 +115,10 @@ def run_seeds(model_name: str, cfg: Config | None = None, seeds=None) -> dict:
     """Run `model_name` over multiple seeds; aggregate test metrics; save to results/."""
     cfg = cfg or Config()
     seeds = list(seeds if seeds is not None else cfg.seeds)
-    runs = [run_experiment(_cfg_for(cfg, model_name, s)) for s in seeds]
+    runs = []
+    for i, s in enumerate(seeds, 1):
+        print(f"\n===== {model_name}: seed {s} ({i}/{len(seeds)}) =====", flush=True)
+        runs.append(run_experiment(_cfg_for(cfg, model_name, s)))
     n_params = sum(p.numel() for p in get_model(
         model_name, in_channels=cfg.in_channels, n_classes=cfg.n_classes,
         feature_scale=cfg.feature_scale, deep_supervision=cfg.deep_supervision).parameters())
@@ -125,6 +130,10 @@ def run_seeds(model_name: str, cfg: Config | None = None, seeds=None) -> dict:
         "runs": runs,
     }
     save_results(result, model_name, cfg.results_dir)
+    a = result["aggregate"]
+    print(f"[{model_name}] DONE  test lesion_dice={a['lesion_dice']['mean']:.4f}"
+          f"±{a['lesion_dice']['std']:.4f}  spec={a['specificity']['mean']:.3f}  "
+          f"-> saved {os.path.join(cfg.results_dir, model_name + '.json')}", flush=True)
     return result
 
 
