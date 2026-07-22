@@ -28,7 +28,7 @@ busi/        # our code: config, data, model, losses, metrics, train, viz
 tests/       # unit / validation tests (pytest)
 splits/      # persisted train/val/test split (tracked)
 results/     # metrics JSON (tracked)
-data/        # BUSI dataset (git-ignored — download separately)
+data/        # BUSI dataset (git-ignored — downloaded at runtime, see below)
 checkpoints/ # model weights (git-ignored)
 models/ dataio/ ...   # authors' original code (reused: attention gate, conv blocks, Dice loss)
 ```
@@ -44,11 +44,17 @@ pytest -q            # run the test suite
 
 If Python 3.13 causes wheel issues, use a 3.11/3.12 virtualenv.
 
-## Data access (BUSI)
+## Data (BUSI)
 
-Download from Kaggle: `aryashah2k/breast-ultrasound-images-dataset`, and place
-the `benign/ malignant/ normal/` folders under `data/BUSI/` (or set
-`Config.data_root`). Dataset files are **not** committed.
+The dataset is **not** committed or submitted — it is **downloaded at runtime**.
+The notebook (`project.ipynb`, section 3) downloads BUSI from Kaggle
+(`aryashah2k/breast-ultrasound-images-dataset`) into `data/BUSI/` (780 images),
+reading a Kaggle token from a Colab secret / env vars / `~/.kaggle/kaggle.json`
+(never hardcoded).
+
+Dataset: Al-Dhabyani, Gomaa, Khaled & Fahmy, *"Dataset of breast ultrasound
+images"*, Data in Brief 28 (2020), **CC BY 4.0**. Keep this attribution and cite
+it in the report.
 
 ## Running experiments
 

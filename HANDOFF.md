@@ -14,8 +14,9 @@ the code, tests, and results), then `DESIGN.md` (decisions) and `PLAN.md`
 ## What you received
 
 The full project **with its git history** (so our commit-by-commit work is
-preserved). It does **not** include: the dataset (`data/`), trained weights
-(`checkpoints/`), or the Python virtualenv (`.venv/`) — you'll recreate those.
+preserved). It does **not** include the dataset (`data/` — downloaded at runtime,
+not submitted), trained weights (`checkpoints/`), or the virtualenv (`.venv/`) —
+you recreate those.
 
 ---
 
