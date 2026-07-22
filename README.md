@@ -44,6 +44,13 @@ pytest -q            # run the test suite
 
 If Python 3.13 causes wheel issues, use a 3.11/3.12 virtualenv.
 
+## Hebrew guides (open in a browser)
+
+Plain-language overviews for the team, in `docs/` — just open the `.html` files:
+- `docs/overview_he.html` — plan, roadmap, status & first results
+- `docs/walkthrough_he.html` — guided tour of all the code, tests, results
+- `docs/changes_he.html` — exactly what we changed vs the original repo
+
 ## Data (BUSI)
 
 The dataset is **not** committed or submitted — it is **downloaded at runtime**.

@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מה שינינו מול הפרויקט המקורי — Attention U-Net</title>
+</head>
+<body>
+<style>
+  :root{
+    --bg:#eef3f3; --surface:#ffffff; --surface-2:#f6f9f9;
+    --ink:#14262b; --ink-soft:#4c6167; --ink-faint:#7c9096;
+    --border:#d8e2e3; --border-strong:#c2d1d3;
+    --accent:#0f7a84; --accent-ink:#0a5a62; --accent-tint:#e2f0f1;
+    --attn:#c9781f; --attn-ink:#a5620f; --attn-tint:#fbeed9;
+    --shadow:0 1px 2px rgba(20,38,43,.04), 0 6px 20px rgba(20,38,43,.06);
+    --radius:14px; --maxw:54rem;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans Hebrew","Arial Hebrew","Assistant",Arial,sans-serif;
+    --mono:"SF Mono",ui-monospace,"Menlo","Consolas",monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0c1618; --surface:#132123; --surface-2:#0f1c1e;
+      --ink:#e9f1f1; --ink-soft:#a6babd; --ink-faint:#748a8d;
+      --border:#233639; --border-strong:#2c4246;
+      --accent:#40b8c2; --accent-ink:#7ad6dd; --accent-tint:#12292c;
+      --attn:#e9a24e; --attn-ink:#f2bd7c; --attn-tint:#2a2114;
+      --shadow:0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#eef3f3; --surface:#ffffff; --surface-2:#f6f9f9; --ink:#14262b; --ink-soft:#4c6167;
+    --ink-faint:#7c9096; --border:#d8e2e3; --border-strong:#c2d1d3; --accent:#0f7a84;
+    --accent-ink:#0a5a62; --accent-tint:#e2f0f1; --attn:#c9781f; --attn-ink:#a5620f; --attn-tint:#fbeed9;
+    --shadow:0 1px 2px rgba(20,38,43,.04), 0 6px 20px rgba(20,38,43,.06);
+  }
+  :root[data-theme="dark"]{
+    --bg:#0c1618; --surface:#132123; --surface-2:#0f1c1e; --ink:#e9f1f1; --ink-soft:#a6babd;
+    --ink-faint:#748a8d; --border:#233639; --border-strong:#2c4246; --accent:#40b8c2;
+    --accent-ink:#7ad6dd; --accent-tint:#12292c; --attn:#e9a24e; --attn-ink:#f2bd7c; --attn-tint:#2a2114;
+    --shadow:0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box} body{margin:0}
+  .page{direction:rtl; text-align:right; background:var(--bg); color:var(--ink);
+    font-family:var(--font); font-size:17px; line-height:1.8; -webkit-font-smoothing:antialiased;
+    padding:clamp(1rem,4vw,2.5rem) 1rem 5rem;}
+  .wrap{max-width:var(--maxw); margin-inline:auto}
+  .hero{position:relative; overflow:hidden;
+    background:radial-gradient(120% 140% at 100% 0%, var(--accent-tint) 0%, transparent 55%), var(--surface);
+    border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:clamp(1.4rem,4vw,2.4rem); margin-bottom:1.6rem;}
+  .eyebrow{font-family:var(--mono); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--accent-ink); display:inline-flex; gap:.5ch; margin:0 0 .7rem;}
+  h1{font-size:clamp(1.5rem,4.5vw,2.2rem); line-height:1.25; margin:0 0 .5rem; letter-spacing:-.01em; text-wrap:balance;}
+  .lede{font-size:1.05rem; color:var(--ink-soft); margin:.2rem 0 0; max-width:48ch}
+  section{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:clamp(1.2rem,3.5vw,1.9rem); margin-bottom:1.15rem;}
+  .sec-head{display:flex; align-items:baseline; gap:.7ch; margin:0 0 .3rem}
+  .sec-num{font-family:var(--mono); font-size:.8rem; font-weight:600; color:var(--accent-ink);
+    background:var(--accent-tint); border-radius:7px; padding:.12rem .5rem; flex:none;}
+  h2{font-size:1.26rem; margin:0; letter-spacing:-.01em; text-wrap:balance}
+  p{margin:.55rem 0} .sub{color:var(--ink-soft)} strong{font-weight:650}
+  code,.en{font-family:var(--mono); font-size:.85em; background:var(--surface-2); border:1px solid var(--border);
+    padding:.06em .42em; border-radius:6px; direction:ltr; unicode-bidi:isolate; white-space:nowrap;}
+  pre{direction:ltr; text-align:left; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:10px; padding:.9rem 1.1rem; overflow-x:auto; font-family:var(--mono); font-size:.8rem; margin:.8rem 0;}
+  pre code{background:none;border:none;padding:0;white-space:pre;}
+  ul{margin:.5rem 0; padding-inline-start:1.3rem} li{margin:.35rem 0} li::marker{color:var(--accent)}
+  .note{background:var(--accent-tint); border:1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+    border-inline-start:4px solid var(--accent); border-radius:10px; padding:1rem 1.1rem; margin:1.1rem 0;}
+  .note .k{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--accent-ink); display:block; margin-bottom:.3rem;}
+  .call{background:var(--attn-tint); border:1px solid color-mix(in srgb, var(--attn) 35%, var(--border));
+    border-inline-start:4px solid var(--attn); border-radius:10px; padding:1rem 1.1rem; margin:1.1rem 0;}
+  .call .k{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--attn-ink); display:block; margin-bottom:.3rem;}
+  .tbl-wrap{overflow-x:auto; margin:.8rem 0 .2rem; border:1px solid var(--border); border-radius:11px}
+  table{border-collapse:collapse; width:100%; font-size:.9rem; min-width:32rem}
+  th,td{padding:.55rem .8rem; text-align:right; border-bottom:1px solid var(--border); vertical-align:top}
+  thead th{background:var(--surface-2); color:var(--ink-soft); font-weight:600; font-size:.8rem;
+    text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--border-strong)}
+  tbody tr:last-child td{border-bottom:none}
+  td code,td .en{white-space:nowrap}
+  .badge{font-family:var(--mono); font-size:.7rem; font-weight:600; padding:.1rem .45rem; border-radius:6px; white-space:nowrap}
+  .b-new{color:#fff; background:var(--accent)}
+  .b-mod{color:var(--attn-ink); background:var(--attn-tint); border:1px solid color-mix(in srgb,var(--attn) 35%,var(--border))}
+  .b-keep{color:var(--accent-ink); background:var(--accent-tint); border:1px solid color-mix(in srgb,var(--accent) 25%,var(--border))}
+  footer{color:var(--ink-faint); font-size:.85rem; text-align:center; margin-top:2rem}
+</style>
+
+<div class="page" lang="he">
+<div class="wrap">
+
+  <header class="hero">
+    <span class="eyebrow">🔀 מה שינינו · גרסה מפושטת</span>
+    <h1>מה שלנו ומה של המאמר המקורי</h1>
+    <p class="lede">הפרויקט הוא <span class="en">fork</span> (העתק) של הקוד המקורי של כותבי המאמר. הדף הזה מסביר בשפה פשוטה בדיוק מה <strong>הוספנו בעצמנו (ההרחבה)</strong> מול מה ש<strong>לקחנו מהם</strong> — כדי שאפשר יהיה לראות את הגבול במבט אחד.</p>
+    <div class="note" style="margin-top:1.1rem">
+      <span class="k">בשורה אחת</span>
+      <p>השארנו את <strong>שער הקשב של המאמר כמו שהוא</strong> (רק תיקנו 2 קבצים שירוצו על PyTorch עדכני), ובנינו סביבו <strong>צינור דו-ממדי חדש לגמרי</strong> תחת <code>busi/</code> כדי להחיל ולהרחיב אותו לאולטרסאונד שד (<span class="en">BUSI</span>).</p>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">01</span><h2><span class="badge b-new">חדש</span>&nbsp; מה הוספנו — זו העבודה שלנו</h2></div>
+    <p>שום דבר מהרשימה הזו לא היה בריפו המקורי:</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>נוסף</th><th>מה זה</th></tr></thead>
+      <tbody>
+        <tr><td><code>busi/config.py</code></td><td>לוח הבקרה — כל ההגדרות במקום אחד</td></tr>
+        <tr><td><code>busi/data.py</code></td><td>טעינת תמונות/מסכות של BUSI, חלוקה, הגדלה, Dataset</td></tr>
+        <tr><td><code>busi/model.py</code></td><td>Attention U-Net <strong>דו-ממדי</strong> + רשת בסיס + factory</td></tr>
+        <tr><td><code>busi/attention_modules.py</code></td><td>בלוקי <span class="en">CBAM</span> ו-<span class="en">scSE</span> (ההשוואה)</td></tr>
+        <tr><td><code>busi/losses.py</code></td><td>Dice מותאם-מכשיר, <strong>Dice+CE</strong> (ברירת מחדל), Focal-Tversky</td></tr>
+        <tr><td><code>busi/metrics.py</code></td><td>ציוני Dice / IoU / <strong>specificity</strong> / focus</td></tr>
+        <tr><td><code>busi/train.py</code></td><td>לולאת אימון, הערכה, seed, בחירת מכשיר</td></tr>
+        <tr><td><code>busi/experiment.py</code></td><td>תזמור רב-seed, טבלאות תוצאות, תמונות</td></tr>
+        <tr><td><code>busi/viz.py</code></td><td>ציור overlays של מסכות/קשב ותמונות השוואה</td></tr>
+        <tr><td><code>tests/</code> (8 קבצים)</td><td>79 בדיקות אוטומטיות</td></tr>
+        <tr><td><code>project.ipynb</code></td><td>המחברת שמריצה הכל (Colab / VS Code)</td></tr>
+        <tr><td>config, <span class="en">requirements</span>, split</td><td>הגדרות + חלוקה קבועה לשחזור</td></tr>
+        <tr><td>קבצי תיעוד</td><td>README / HANDOFF / WALKTHROUGH / DESIGN / PLAN / CLAUDE.md</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">02</span><h2><span class="badge b-mod">שינוי קטן</span>&nbsp; מה שינינו בקוד שלהם</h2></div>
+    <p>שינינו <strong>רק שני קבצי קוד שלהם</strong>, ורק כדי שירוצו על PyTorch עדכני — <strong>בלי שום שינוי בשיטה או במתמטיקה</strong>:</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>קובץ</th><th>מה שינינו</th><th>למה</th></tr></thead>
+      <tbody>
+        <tr><td><code>grid_attention_layer.py</code></td><td><span class="en">F.upsample → F.interpolate</span>; <span class="en">F.sigmoid → torch.sigmoid</span></td><td>הפקודות הישנות הוסרו/הוצאו משימוש. ההתנהגות זהה.</td></tr>
+        <tr><td><code>networks_other.py</code></td><td><span class="en">init.kaiming_normal → kaiming_normal_</span> (וכן normal_/constant_/xavier_normal_/orthogonal_)</td><td>כינויים ישנים של אתחול משקולות. אותה התנהגות.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="sub">בנוסף, תחזוקה קטנה של הפרויקט: <code>.gitignore</code> ו-<code>README.md</code>.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">03</span><h2><span class="badge b-keep">נשמר</span>&nbsp; מה אנחנו מנצלים ללא שינוי</h2></div>
+    <p>אלה החלקים של הכותבים שהקוד שלנו <strong>מייבא ישירות</strong> — הקשר האמיתי למאמר:</p>
+    <ul>
+      <li><strong><code>GridAttentionBlock2D</code></strong> — <strong>שער הקשב עצמו</strong>, לב השיטה. משתמשים בו כמו שהוא.</li>
+      <li><code>unetConv2</code>, <code>unetUp</code> — אבני בניין של מקודד/מפענח.</li>
+      <li><code>init_weights</code> — אתחול משקולות.</li>
+      <li><code>SoftDiceLoss</code> / <code>One_Hot</code> — בנינו גרסה מותאמת-מכשיר ב-<code>busi/losses.py</code>; המקור נשאר.</li>
+      <li><code>unet_2D</code> — ה-U-Net הרגיל, כבסיס להשוואה.</li>
+    </ul>
+    <p class="sub">כל השאר ב-<code>models/ dataio/ utils/</code> (הרשתות התלת-ממדיות, SonoNet, טעינת NIfTI, Visdom, סקריפטי אימון) — <strong>נשאר ללא נגיעה ולא בשימוש</strong>. זה ה-framework המקורי שלא היינו צריכים.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">✦</span><h2>בשורה אחת</h2></div>
+    <div class="call">
+      <span class="k">ההרחבה</span>
+      <p>ניצלנו את מימוש שער-הקשב של הכותבים כמו שהוא, ובנינו סביבו צינור דו-ממדי חדש שמעביר את <span class="en">Attention U-Net</span> מ-<strong>CT תלת-ממדי של הלבלב</strong> ל-<strong>אולטרסאונד דו-ממדי של השד (BUSI)</strong> — בתוספת בסיס להשוואה + CBAM + scSE, טעינת דאטה, אימון Dice+CE, מדדי specificity ופרשנות, וניסויים רב-seed. הריפו המקורי לא עשה דבר מזה.</p>
+    </div>
+    <p class="sub">רוצים לראות את ההבדל הגולמי בעצמכם? מתוך הריפו: <code>git diff eee4881 HEAD --stat</code> (eee4881 = קוד הכותבים שממנו התחלנו). פירוט מלא: <code>CHANGES_VS_ORIGINAL.md</code>.</p>
+  </section>
+
+  <footer>מה שינינו מול המקור · מבוסס על <code>CHANGES_VS_ORIGINAL.md</code></footer>
+
+</div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>תוכנית הפרויקט — Attention U-Net על אולטרסאונד שד</title>
+</head>
+<body>
+<style>
+  :root{
+    --bg:#eef3f3; --surface:#ffffff; --surface-2:#f6f9f9;
+    --ink:#14262b; --ink-soft:#4c6167; --ink-faint:#7c9096;
+    --border:#d8e2e3; --border-strong:#c2d1d3;
+    --accent:#0f7a84; --accent-ink:#0a5a62; --accent-tint:#e2f0f1;
+    --attn:#c9781f; --attn-ink:#a5620f; --attn-tint:#fbeed9;
+    --shadow:0 1px 2px rgba(20,38,43,.04), 0 6px 20px rgba(20,38,43,.06);
+    --radius:14px;
+    --maxw:52rem;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans Hebrew","Arial Hebrew","Assistant",Arial,sans-serif;
+    --mono:"SF Mono",ui-monospace,"Menlo","Consolas",monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0c1618; --surface:#132123; --surface-2:#0f1c1e;
+      --ink:#e9f1f1; --ink-soft:#a6babd; --ink-faint:#7690;
+      --ink-faint:#748a8d;
+      --border:#233639; --border-strong:#2c4246;
+      --accent:#40b8c2; --accent-ink:#7ad6dd; --accent-tint:#12292c;
+      --attn:#e9a24e; --attn-ink:#f2bd7c; --attn-tint:#2a2114;
+      --shadow:0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#eef3f3; --surface:#ffffff; --surface-2:#f6f9f9;
+    --ink:#14262b; --ink-soft:#4c6167; --ink-faint:#7c9096;
+    --border:#d8e2e3; --border-strong:#c2d1d3;
+    --accent:#0f7a84; --accent-ink:#0a5a62; --accent-tint:#e2f0f1;
+    --attn:#c9781f; --attn-ink:#a5620f; --attn-tint:#fbeed9;
+    --shadow:0 1px 2px rgba(20,38,43,.04), 0 6px 20px rgba(20,38,43,.06);
+  }
+  :root[data-theme="dark"]{
+    --bg:#0c1618; --surface:#132123; --surface-2:#0f1c1e;
+    --ink:#e9f1f1; --ink-soft:#a6babd; --ink-faint:#748a8d;
+    --border:#233639; --border-strong:#2c4246;
+    --accent:#40b8c2; --accent-ink:#7ad6dd; --accent-tint:#12292c;
+    --attn:#e9a24e; --attn-ink:#f2bd7c; --attn-tint:#2a2114;
+    --shadow:0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0}
+  .page{
+    direction:rtl; text-align:right;
+    background:var(--bg); color:var(--ink);
+    font-family:var(--font);
+    font-size:17px; line-height:1.8;
+    -webkit-font-smoothing:antialiased;
+    padding:clamp(1rem,4vw,2.5rem) 1rem 5rem;
+  }
+  .wrap{max-width:var(--maxw); margin-inline:auto}
+
+  /* header */
+  .hero{
+    position:relative; overflow:hidden;
+    background:
+      radial-gradient(120% 140% at 100% 0%, var(--accent-tint) 0%, transparent 55%),
+      var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:clamp(1.4rem,4vw,2.4rem);
+    margin-bottom:1.6rem;
+  }
+  .hero::before{
+    content:""; position:absolute; inset-block:0; inset-inline-end:-40px; width:220px;
+    background-image:repeating-linear-gradient(90deg, var(--accent) 0 2px, transparent 2px 13px);
+    opacity:.09; -webkit-mask-image:radial-gradient(circle at 100% 0,#000,transparent 72%);
+    mask-image:radial-gradient(circle at 100% 0,#000,transparent 72%);
+    pointer-events:none;
+  }
+  .eyebrow{
+    font-family:var(--mono); font-size:.72rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent-ink);
+    display:inline-flex; align-items:center; gap:.5ch; margin:0 0 .7rem;
+  }
+  h1{
+    font-size:clamp(1.55rem,4.5vw,2.3rem); line-height:1.25;
+    margin:0 0 .5rem; letter-spacing:-.01em; text-wrap:balance;
+  }
+  .lede{font-size:1.08rem; color:var(--ink-soft); margin:.2rem 0 0; max-width:44ch}
+  .meta{
+    display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1.3rem;
+  }
+  .chip{
+    font-family:var(--mono); font-size:.75rem; color:var(--ink-soft);
+    background:var(--surface-2); border:1px solid var(--border);
+    padding:.32rem .7rem; border-radius:999px; white-space:nowrap;
+  }
+  .chip b{color:var(--ink); font-weight:600}
+
+  /* sections */
+  section{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:clamp(1.2rem,3.5vw,1.9rem); margin-bottom:1.15rem;
+  }
+  .sec-head{display:flex; align-items:baseline; gap:.7ch; margin:0 0 .3rem}
+  .sec-num{
+    font-family:var(--mono); font-size:.8rem; font-weight:600;
+    color:var(--accent-ink); background:var(--accent-tint);
+    border-radius:7px; padding:.12rem .5rem; flex:none;
+  }
+  h2{font-size:1.28rem; margin:0; letter-spacing:-.01em; text-wrap:balance}
+  h3{font-size:1.02rem; margin:1.3rem 0 .35rem; color:var(--ink)}
+  p{margin:.55rem 0}
+  .sub{color:var(--ink-soft)}
+  strong{font-weight:650}
+  a{color:var(--accent-ink); text-decoration-thickness:1px; text-underline-offset:2px}
+
+  code, .en{
+    font-family:var(--mono); font-size:.86em;
+    background:var(--surface-2); border:1px solid var(--border);
+    padding:.06em .42em; border-radius:6px;
+    direction:ltr; unicode-bidi:isolate; white-space:nowrap;
+  }
+
+  ul,ol{margin:.5rem 0; padding-inline-start:1.3rem}
+  li{margin:.3rem 0}
+  li::marker{color:var(--accent)}
+
+  /* callout */
+  .call{
+    background:var(--attn-tint);
+    border:1px solid color-mix(in srgb, var(--attn) 35%, var(--border));
+    border-inline-start:4px solid var(--attn);
+    border-radius:10px; padding:1rem 1.1rem; margin:1.1rem 0;
+  }
+  .call .k{
+    font-family:var(--mono); font-size:.72rem; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--attn-ink); display:block; margin-bottom:.3rem;
+  }
+  .call p{margin:.2rem 0}
+
+  .note{
+    background:var(--accent-tint);
+    border:1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+    border-inline-start:4px solid var(--accent);
+    border-radius:10px; padding:1rem 1.1rem; margin:1.1rem 0;
+  }
+  .note .k{
+    font-family:var(--mono); font-size:.72rem; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--accent-ink); display:block; margin-bottom:.3rem;
+  }
+
+  /* concept strip: attention gate */
+  .strip{
+    display:grid; grid-template-columns:1fr auto 1fr auto 1fr; align-items:center;
+    gap:.5rem; margin:1.1rem 0 .3rem; text-align:center;
+  }
+  .strip .box{
+    background:var(--surface-2); border:1px solid var(--border-strong);
+    border-radius:10px; padding:.8rem .5rem; min-height:100%;
+  }
+  .strip .box .t{font-size:.82rem; color:var(--ink-soft); line-height:1.4}
+  .strip .box .big{font-size:1.5rem; line-height:1; margin-bottom:.35rem; display:block}
+  .strip .gate{
+    background:var(--attn-tint); border-color:color-mix(in srgb,var(--attn) 40%,var(--border));
+  }
+  .strip .gate .t{color:var(--attn-ink); font-weight:600}
+  .strip .arrow{color:var(--ink-faint); font-size:1.2rem}
+  .strip-cap{font-size:.82rem; color:var(--ink-faint); text-align:center; margin:.2rem 0 0}
+  @media (max-width:560px){
+    .strip{grid-template-columns:1fr; }
+    .strip .arrow{transform:rotate(90deg)}
+  }
+
+  /* two-col cards */
+  .cols{display:grid; grid-template-columns:1fr 1fr; gap:.9rem; margin-top:.8rem}
+  @media (max-width:560px){.cols{grid-template-columns:1fr}}
+  .card{border:1px solid var(--border); border-radius:11px; padding:1rem 1.05rem; background:var(--surface-2)}
+  .card h4{margin:0 0 .5rem; font-size:.95rem; display:flex; align-items:center; gap:.5ch}
+  .card.reuse h4{color:var(--accent-ink)}
+  .card.build h4{color:var(--attn-ink)}
+  .card ul{margin:.2rem 0; padding-inline-start:1.1rem; font-size:.94rem}
+
+  /* table */
+  .tbl-wrap{overflow-x:auto; margin:.8rem 0 .2rem; border:1px solid var(--border); border-radius:11px}
+  table{border-collapse:collapse; width:100%; font-size:.92rem; min-width:34rem}
+  caption{text-align:right; color:var(--ink-faint); font-size:.82rem; padding:.5rem .8rem 0}
+  th,td{padding:.6rem .8rem; text-align:right; border-bottom:1px solid var(--border)}
+  thead th{background:var(--surface-2); color:var(--ink-soft); font-weight:600; font-size:.82rem;
+    text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--border-strong)}
+  tbody tr:last-child td{border-bottom:none}
+  td .en{white-space:nowrap}
+
+  /* workflow steps */
+  .flow{list-style:none; padding:0; margin:.6rem 0; counter-reset:step}
+  .flow li{
+    position:relative; padding-inline-start:2.6rem; margin:.7rem 0; counter-increment:step;
+  }
+  .flow li::before{
+    content:counter(step); position:absolute; inset-inline-start:0; top:.05em;
+    width:1.7rem; height:1.7rem; border-radius:50%;
+    background:var(--accent); color:#fff; font-family:var(--mono); font-size:.8rem; font-weight:600;
+    display:grid; place-items:center;
+  }
+  .flow li b{display:block}
+
+  /* roadmap timeline */
+  .road{list-style:none; margin:1rem 0 0; padding:0}
+  .road li{position:relative; padding-inline-start:2.5rem; padding-bottom:1.15rem}
+  .road li:last-child{padding-bottom:0}
+  .road li::after{content:""; position:absolute; inset-inline-start:.78rem; top:1.75rem; bottom:-.1rem; width:2px; background:var(--border-strong)}
+  .road li:last-child::after{display:none}
+  .road .dot{
+    position:absolute; inset-inline-start:0; top:.05rem; width:1.65rem; height:1.65rem;
+    border-radius:50%; background:var(--surface-2); border:2px solid var(--accent);
+    color:var(--accent-ink); font-family:var(--mono); font-size:.78rem; font-weight:600;
+    display:grid; place-items:center; z-index:1;
+  }
+  .road .t{font-weight:600}
+  .road .d{color:var(--ink-soft); font-size:.93rem; margin:.05rem 0 .3rem}
+  .road .cp{
+    display:inline-block; font-family:var(--mono); font-size:.72rem; line-height:1.5;
+    color:var(--accent-ink); background:var(--accent-tint);
+    border:1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+    border-radius:6px; padding:.12rem .5rem;
+  }
+  .road .cp.crit{
+    color:var(--attn-ink); background:var(--attn-tint);
+    border-color:color-mix(in srgb, var(--attn) 38%, var(--border));
+  }
+  .road li.mile .dot{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .road li.mile .cp{color:#fff; background:var(--accent); border-color:var(--accent)}
+
+  /* local vs colab */
+  .env{display:grid; grid-template-columns:1fr 1fr; gap:.9rem; margin-top:.6rem}
+  @media (max-width:560px){.env{grid-template-columns:1fr}}
+  .env .card h4 .big{font-size:1.2rem}
+
+  /* glossary */
+  dl{margin:.6rem 0 0; display:grid; gap:.1rem}
+  dt{font-weight:650; color:var(--ink); margin-top:.7rem}
+  dd{margin:0; color:var(--ink-soft)}
+
+  footer{color:var(--ink-faint); font-size:.85rem; text-align:center; margin-top:2rem}
+  .divider{height:1px; background:var(--border); border:0; margin:1.2rem 0}
+  @media (prefers-reduced-motion:no-preference){
+    a,.chip{transition:color .15s ease}
+  }
+</style>
+
+<div class="page" lang="he">
+<div class="wrap">
+
+  <header class="hero">
+    <span class="eyebrow">🔎 תוכנית הפרויקט · גרסה מפושטת</span>
+    <h1>ללמד רשת נוירונים "איפה להסתכל" בתמונות אולטרסאונד של השד</h1>
+    <p class="lede">אנחנו לוקחים מודל מוכר לזיהוי איברים בתמונות רפואיות, ומתאימים אותו לזהות נגעים (גושים) בתמונות אולטרסאונד של השד. זה המסמך שמסביר בשפה פשוטה מה בדיוק נעשה ולמה.</p>
+    <div class="meta">
+      <span class="chip">קורס <b>336033</b> · עיבוד תמונות רפואיות</span>
+      <span class="chip">מאמר: <b>Attention U-Net</b></span>
+      <span class="chip">דדליין <b>20.08.2026</b></span>
+      <span class="chip">בזוגות · הגשה ב-<b>Colab</b></span>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">✓</span><h2>מצב נוכחי ותוצאות ראשוניות</h2></div>
+    <div class="note">
+      <span class="k">היכן אנחנו</span>
+      <p>כל הקוד בנוי ונבדק: <strong>79 בדיקות אוטומטיות עוברות</strong> (רצות בלי הדאטה, על תמונות סינתטיות). הורדנו את <span class="en">BUSI</span> (אומת: 437/210/133 = 780 תמונות) והרצנו אימון קצר על המחשב. נותר: להריץ את הניסויים המלאים ב-<span class="en">Colab</span> (GPU), ואז לכתוב את הדו"ח.</p>
+    </div>
+    <p>תוצאה ראשונית (<span class="en">Attention U-Net</span>, 40 epochs, seed אחד) על קבוצת המבחן:</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>מדד</th><th>ערך</th></tr></thead>
+      <tbody>
+        <tr><td>Dice (נגע)</td><td>0.781</td></tr>
+        <tr><td>IoU (נגע)</td><td>0.698</td></tr>
+        <tr><td>Specificity (תמונות תקינות)</td><td>0.950</td></tr>
+        <tr><td>Dice שפיר / ממאיר</td><td>0.811 / 0.718</td></tr>
+      </tbody>
+    </table></div>
+    <p class="sub">אלה מספרים ריאליים ל-<span class="en">BUSI</span>. המספרים הסופיים יגיעו מההרצות המלאות ב-<span class="en">Colab</span>.</p>
+    <div class="call">
+      <span class="k">שני ממצאים חשובים (ל"אתגרים" בדו"ח)</span>
+      <p><strong>1.</strong> קצב למידה <span class="en">1e-2</span> גורם לרשת "להיתקע" (מנבאת רק רקע); <span class="en">1e-3</span> עובד.<br>
+      <strong>2.</strong> <span class="en">Loss</span> של <span class="en">Dice</span> בלבד נכשל באימון על <span class="en">BUSI</span> — הרשת נתקעת. שילוב <span class="en">Dice + Cross-Entropy</span> פותר זאת (זו כעת ברירת המחדל).</p>
+    </div>
+    <p class="sub">להבנה מלאה של הקוד, הבדיקות והתוצאות — ראו <code>WALKTHROUGH.md</code> (סיור מודרך בקוד, בשפה פשוטה).</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">01</span><h2>מה בכלל המשימה?</h2></div>
+    <p><strong>סגמנטציה (Segmentation)</strong> = לצבוע בתמונה בדיוק איפה נמצא הדבר שמעניין אותנו. אצלנו: בהינתן תמונת אולטרסאונד של שד, הרשת צריכה לסמן את הפיקסלים של הנגע (הגוש) ולהפריד אותם מהרקע.</p>
+    <p class="sub">התוצאה של הרשת היא "מסכה" (mask) — תמונה בשחור-לבן שבה לבן = נגע, שחור = רקע. יש לנו מסכות אמת (מה שרופא סימן), והמטרה שהרשת תלמד לייצר מסכות דומות בעצמה.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">02</span><h2>מה עשה המאמר המקורי?</h2></div>
+    <p>המאמר <span class="en">Attention U-Net</span> שיפר רשת סגמנטציה מפורסמת בשם <span class="en">U-Net</span>. הבעיה שהם פתרו: כשמזהים איבר קטן (במאמר — הלבלב ב-CT), הרשת "מתפזרת" והסתכלה גם על הרבה אזורים לא רלוונטיים.</p>
+    <p>הפתרון שלהם: <strong>שער קשב (Attention Gate)</strong> — רכיב קטן שהרשת מוסיפה בתוכה, שלומד לבד <strong>להדגיש את האזור החשוב ולהחליש את הרקע</strong>. זה בדיוק המשפט שממנו נגזר שם המאמר: "ללמוד איפה להסתכל".</p>
+
+    <div class="strip">
+      <div class="box"><span class="big">🌫️</span><span class="t">מפת מאפיינים "רועשת" — הרבה רקע מיותר</span></div>
+      <div class="arrow">◀</div>
+      <div class="box gate"><span class="big">🔎</span><span class="t">שער הקשב<br>מסנן ומדגיש</span></div>
+      <div class="arrow">◀</div>
+      <div class="box"><span class="big">🎯</span><span class="t">מפה "ממוקדת" — בעיקר על הנגע</span></div>
+    </div>
+    <p class="strip-cap">כך שער הקשב עובד: הוא נותן לכל פיקסל "ציון חשיבות" בין 0 ל-1, וכופל בו את התמונה — כך אזורים לא חשובים כמעט נעלמים.</p>
+
+    <div class="note">
+      <span class="k">בשורה אחת</span>
+      <p>שער הקשב הוא כמעט "חינמי" — הוא מוסיף מעט מאוד חישוב, אבל משפר את הדיוק. זו כל הגאונות של המאמר.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">03</span><h2>מה ההרחבה שלנו (וזה מה שנותן את הציון)?</h2></div>
+    <p>המאמר עבד על <strong>CT של הלבלב</strong>, בתמונות <strong>תלת-ממדיות</strong>. אנחנו לוקחים את אותו רעיון של שער קשב ומחילים אותו על <strong>דומיין חדש</strong>: תמונות <strong>אולטרסאונד דו-ממדיות של השד</strong> (מאגר בשם <span class="en">BUSI</span>), כדי לזהות נגעים.</p>
+    <p class="sub">ההנחיות של הקורס מציינות "החלה על דומיין חדש" כסוג הרחבה לגיטימי במפורש — אז אנחנו על קרקע בטוחה.</p>
+    <p>מעבר להחלפת הדאטה, נוסיף כמה נדבכים שהופכים את זה לפרויקט "אמיתי" ולא רק הרצה:</p>
+    <ul>
+      <li><strong>השוואה (Ablation):</strong> נריץ גם <span class="en">U-Net</span> רגיל וגם <span class="en">Attention U-Net</span> על אותו דאטה, ונמדוד כמה שער הקשב באמת עוזר באולטרסאונד.</li>
+      <li><strong>השוואת מנגנוני קשב:</strong> נשווה את שער הקשב של המאמר מול מנגנונים מודרניים — <span class="en">CBAM</span> ו-<span class="en">scSE</span> — ונבדוק איזה הכי מתאים לזיהוי נגעים בשד.</li>
+      <li><strong>זיהוי תמונות תקינות:</strong> נכלול גם תמונות ללא נגע, כדי שהרשת תלמד "לשתוק" על רקמה בריאה (ולא להמציא נגע).</li>
+      <li><strong>פרשנות (Interpretability):</strong> נצייר את "מפות הקשב" ונראה בעיניים שהרשת באמת מסתכלת על הנגע — ונשווה בין גושים שפירים לממאירים.</li>
+      <li><strong>דיוק סטטיסטי:</strong> כל ניסוי ירוץ עם 3 "זרעים אקראיים" שונים, ונדווח ממוצע ± סטיית תקן — כדי להוכיח שהתוצאה אמיתית ולא מקרית.</li>
+    </ul>
+    <div class="call">
+      <span class="k">חשש נפוץ — ומענה</span>
+      <p><strong>"האם ההמרה לדו-ממד היא יותר מדי / פרויקט חדש?"</strong> לא. ההמרה לדו-ממד היא רק "צנרת" טכנית; הרעיון של המאמר (שער הקשב) נשאר זהה. אנחנו אפילו <strong>משתמשים בקוד המקורי של הכותבים</strong> (ראו סעיף 5) — כך הקשר למאמר גלוי ומוכח.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">04</span><h2>הדאטה: מאגר BUSI</h2></div>
+    <p>מאגר של תמונות אולטרסאונד שד, זמין ב-<span class="en">Kaggle</span>. לכל תמונה יש מסכת אמת (איפה הנגע).</p>
+    <ul>
+      <li><strong>נשתמש בכל 780 התמונות:</strong> שפירות (benign, 437) + ממאירות (malignant, 210) + תקינות (normal, 133).</li>
+      <li><strong>לתמונות התקינות אין נגע</strong> → המסכה שלהן ריקה (כולה שחורה). הן חשובות כדי שהרשת תלמד לזהות תמונה נקייה.</li>
+    </ul>
+    <div class="call">
+      <span class="k">למה חשוב לכלול תמונות תקינות</span>
+      <p>אם נאמן רק על תמונות עם נגע, הרשת "תחשוב" שתמיד יש נגע — ותמציא אחד גם בתמונה בריאה. לכן נכלול תקינות באימון, ונמדוד בנפרד <strong>Specificity</strong> = כמה פעמים הרשת צדקה ואמרה "אין כאן כלום".</p>
+    </div>
+    <h3>מה עושים עם התמונות (הכנה)</h3>
+    <ul>
+      <li>לפעמים לתמונה יש כמה קבצי מסכה → <strong>ממזגים אותם לאחד</strong>.</li>
+      <li>מקטינים הכל לגודל אחיד <span class="en">256×256</span>. חשוב: את המסכה מקטינים בשיטת <span class="en">nearest-neighbor</span> כדי שתישאר שחור-לבן חד (לא אפור).</li>
+      <li>מנרמלים את ערכי הבהירות לטווח <span class="en">[0,1]</span>.</li>
+      <li>מחלקים ל-<strong>אימון / ולידציה / מבחן</strong> ביחס 70/15/15, עם "זרע אקראי" קבוע כדי שהחלוקה תהיה תמיד זהה וניתנת לשחזור.</li>
+      <li><strong>הגדלת דאטה (Augmentation):</strong> היפוכים וסיבובים קטנים של התמונות באימון, כדי שהרשת תלמד טוב יותר מדאטה מוגבל. נשתמש בספריית <span class="en">albumentations</span>.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">05</span><h2>המודל: מה לוקחים מהם ומה בונים לבד</h2></div>
+    <p>נעשה <strong>Fork</strong> (העתק) של הריפו של הכותבים (ברישיון <span class="en">MIT</span> — מותר לחלוטין), ונוסיף עליו את הקוד שלנו בתיקייה נפרדת.</p>
+    <div class="cols">
+      <div class="card reuse">
+        <h4>♻️ לוקחים מהקוד שלהם</h4>
+        <ul>
+          <li><span class="en">GridAttentionBlock2D</span> — <strong>שער הקשב עצמו</strong> (לב המאמר!)</li>
+          <li>אבני הבניין <span class="en">unetConv2</span>, <span class="en">unetUp</span></li>
+          <li>פונקציית ה-<span class="en">SoftDiceLoss</span> שלהם</li>
+          <li>ה-<span class="en">U-Net</span> הרגיל שלהם — כבסיס להשוואה</li>
+        </ul>
+      </div>
+      <div class="card build">
+        <h4>🛠️ כותבים לבד</h4>
+        <ul>
+          <li>הרכבת ה-<span class="en">Attention U-Net</span> הדו-ממדי</li>
+          <li>גרסאות 2D קטנות לרכיבים שקיימים אצלם רק ב-3D</li>
+          <li>טעינת הדאטה של <span class="en">BUSI</span></li>
+          <li>לולאת האימון, המדידה, וציור מפות הקשב</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note">
+      <span class="k">למה זה חכם</span>
+      <p>שימוש בקוד המקורי של שער הקשב = פחות סיכוי לטעויות, וקשר ברור ומוכח למאמר. הקוד שלנו הוא ה"הרחבה"; הקוד שלהם הוא ה"עוגן".</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">06</span><h2>איך מאמנים את הרשת</h2></div>
+    <p class="sub">"אימון" = מראים לרשת תמונות שוב ושוב, היא מנחשת מסכה, אנחנו מודדים כמה טעתה, והיא מתקנת את עצמה קצת בכל פעם.</p>
+    <ul>
+      <li><strong>פונקציית מחיר (Loss):</strong> <span class="en">Dice + Cross-Entropy</span> — מדד חפיפה (Dice) יחד עם אות חזק לכל פיקסל (CE). גילינו ש-<span class="en">Dice</span> לבד נכשל, ולכן זו ברירת המחדל.</li>
+      <li><strong>אופטימייזר:</strong> <span class="en">Adam</span> עם קצב למידה <span class="en">1e-3</span>.</li>
+      <li><strong>Epoch</strong> = מעבר אחד על כל תמונות האימון. נריץ עד ~100, אבל עם <strong>עצירה מוקדמת</strong> (early stopping): אם הרשת מפסיקה להשתפר על הולידציה, עוצרים — כדי לא ללמוד בעל-פה.</li>
+      <li>שומרים את המודל הכי טוב שהיה (הכי גבוה בולידציה).</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">07</span><h2>איך יודעים שהצלחנו</h2></div>
+    <ul>
+      <li><strong><span class="en">Dice</span> ו-<span class="en">IoU</span>:</strong> שני ציונים בין 0 ל-1 שמודדים כמה המסכה שלנו קרובה לאמת (רק על תמונות עם נגע). גבוה יותר = טוב יותר.</li>
+      <li><strong><span class="en">Specificity</span>:</strong> על התמונות התקינות — כמה פעמים הרשת נכון לא זיהתה נגע.</li>
+      <li><strong>טבלת השוואה:</strong> רשת רגילה מול שלושת מנגנוני הקשב — לראות מי הכי עוזר.</li>
+      <li><strong>מפות קשב:</strong> תמונות שמראות איפה כל רשת "הסתכלה", כדי להוכיח שהיא התמקדה בנגע.</li>
+    </ul>
+
+    <div class="tbl-wrap">
+      <table>
+        <caption>ההרצות, מסודרות לפי אבני-דרך (מהבסיס לרשות)</caption>
+        <thead><tr><th>אבן דרך</th><th>המודל</th><th>מייצר בדו"ח</th></tr></thead>
+        <tbody>
+          <tr><td>בסיס</td><td><span class="en">U-Net</span> רגיל (השוואה)</td><td>שורת בסיס + תמונות תוצאה</td></tr>
+          <tr><td>בסיס</td><td><span class="en">Attention U-Net</span> (המאמר)</td><td>שורה + מפות קשב</td></tr>
+          <tr><td>רצוי</td><td>קשב <span class="en">CBAM</span></td><td>שורה + מפות קשב</td></tr>
+          <tr><td>מתיחה</td><td>קשב <span class="en">scSE</span></td><td>שורה + מפות קשב</td></tr>
+          <tr><td>מתיחה</td><td>המנצח + <span class="en">Focal-Tversky</span></td><td>שורה נוספת (רגישות ל-loss)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sub">כל הרצה חוזרת על 3 זרעים אקראיים, ומדווחת ממוצע ± סטיית תקן.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">08</span><h2>איפה מריצים: המחשב מול Colab</h2></div>
+    <p class="sub">שום דבר כאן לא "כבד" באמת — הרשת קטנה. החלוקה היא בעיקר לנוחות ולמהירות פיתוח.</p>
+    <div class="env">
+      <div class="card reuse">
+        <h4><span class="big">💻</span> על המחשב (Mac M4)</h4>
+        <ul>
+          <li>פיתוח וניפוי באגים מהיר</li>
+          <li>הרצת כל הבדיקות</li>
+          <li>הרצות קצרות לבדיקה</li>
+          <li>ללא הגבלות זמן / ניתוקים</li>
+        </ul>
+      </div>
+      <div class="card build">
+        <h4><span class="big">☁️</span> על Colab</h4>
+        <ul>
+          <li>ההרצות ה"רשמיות" הסופיות</li>
+          <li>ייצור הטבלאות והתמונות לדו"ח</li>
+          <li>סביבת ההגשה (חובה ע"פ הקורס)</li>
+          <li>לחבר את Google Drive כדי לא לאבד קבצים</li>
+        </ul>
+      </div>
+    </div>
+    <p style="margin-top:.9rem">הטריק: כל הקוד "אדיש למכשיר" — אותם קבצים רצים גם על המחשב וגם על <span class="en">Colab</span>, בלי שינוי.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">09</span><h2>בדיקות: איך נדע שכל חלק עובד</h2></div>
+    <p>לכל פונקציה שנכתוב תהיה <strong>בדיקה קטנה ועצמאית</strong> (unit test), כדי לאתר טעויות מוקדם ובקלות. סדר הבדיקות מהזול לחשוב ביותר:</p>
+    <ol class="flow">
+      <li><b>בדיקת צורות</b>הרשת מקבלת תמונה ומחזירה פלט בגודל הנכון.</li>
+      <li><b>Overfit על תמונה אחת</b><span class="sub">הבדיקה החשובה ביותר:</span> מאמנים על 2–4 תמונות בלבד — אם הרשת תקינה, ה-<span class="en">Dice</span> יקפוץ כמעט ל-1. תופס את רוב הבאגים.</li>
+      <li><b>תקינות דאטה</b>המסכה נשארת שחור-לבן, התמונה והמסכה מיושרות, אין דליפה בין קבוצות.</li>
+      <li><b>שחזוריות</b>אותו זרע אקראי → אותה חלוקה בדיוק.</li>
+      <li><b>הרצת עשן</b>Epoch אחד שלם רץ מקצה לקצה בלי שגיאות.</li>
+    </ol>
+    <p class="sub">כל הפירוט המלא — כולל בדיקה ספציפית לכל פונקציה — נמצא בקובץ <code>DESIGN.md</code>.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">10</span><h2>מפת דרכים — שלבי הבנייה</h2></div>
+    <p class="sub">בונים לפי הסדר. אחרי כל שלב יש "נקודת בקרה" קטנה שמוודאת שהכול תקין לפני שממשיכים. פירוט המשימות והבדיקות המלא נמצא בקובץ <code>PLAN.md</code>, וסיור מודרך בקוד ב-<code>WALKTHROUGH.md</code>. <strong>כרגע: שלבים 0–8 הושלמו ונבדקו (הקוד); נותרו ההרצות ב-Colab (שלב 9 בטבלה) והדו"ח.</strong></p>
+    <ol class="road">
+      <li><span class="dot">0</span><div><span class="t">הכנות</span><div class="d">הקמת סביבת עבודה ושלד הקוד.</div><span class="cp">בקרה: הכול רץ ומתקמפל</span></div></li>
+      <li><span class="dot">1</span><div><span class="t">צינור הדאטה</span><div class="d">טעינת תמונות ומסכות, מיזוג, וחלוקה לקבוצות.</div><span class="cp">בקרה: בדיקות דאטה + בדיקה ויזואלית</span></div></li>
+      <li><span class="dot">2</span><div><span class="t">המודל</span><div class="d">בניית רשת הקשב + הרשת הרגילה להשוואה.</div><span class="cp">בקרה: פלט בגודל הנכון</span></div></li>
+      <li><span class="dot">3</span><div><span class="t">מדדים ו-Loss</span><div class="d">פונקציית המחיר ומדדי ההצלחה.</div><span class="cp">בקרה: בדיקות המספרים עוברות</span></div></li>
+      <li><span class="dot">4</span><div><span class="t">אימון</span><div class="d">לולאת האימון עם עצירה מוקדמת.</div><span class="cp crit">בקרה קריטית: אימון על תמונה אחת חייב להגיע ל-Dice≈1 לפני אימון אמיתי</span></div></li>
+      <li><span class="dot">5</span><div><span class="t">ויזואליזציה</span><div class="d">ציור תוצאות ומפות קשב.</div><span class="cp">בקרה: נוצרות תמונות</span></div></li>
+      <li class="mile"><span class="dot">6</span><div><span class="t">ניסויי הבסיס 🏁</span><div class="d">רשת רגילה + רשת המאמר, 3 זרעים, טבלה ותמונות.</div><span class="cp">אבן דרך «בסיס» — פרויקט שלם וניתן להגשה</span></div></li>
+      <li class="mile"><span class="dot">7</span><div><span class="t">הוספת CBAM 🏁</span><div class="d">מנגנון קשב נוסף להשוואה.</div><span class="cp">אבן דרך «רצוי»</span></div></li>
+      <li class="mile"><span class="dot">8</span><div><span class="t">הוספת scSE 🏁</span><div class="d">מנגנון קשב שלישי (ורשות: <span class="en">Focal-Tversky</span>).</div><span class="cp">אבן דרך «מתיחה»</span></div></li>
+      <li class="mile"><span class="dot">9</span><div><span class="t">דו"ח והגשה 🏁</span><div class="d">כתיבת הדו"ח ואריזת הקבצים.</div><span class="cp">מוכן להגשה</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">11</span><h2>מה מגישים בסוף</h2></div>
+    <ul>
+      <li>מחברת <span class="en">Colab</span> אחת שרצה מקצה לקצה, מתועדת.</li>
+      <li>הקוד: <span class="en">Attention U-Net</span> דו-ממדי + מנגנוני הקשב + טעינת דאטה של <span class="en">BUSI</span>.</li>
+      <li>חלוקת דאטה ניתנת לשחזור + הוראות הורדה מ-<span class="en">Kaggle</span>.</li>
+      <li>תוצאות: <span class="en">Dice</span>, <span class="en">IoU</span> ו-<span class="en">Specificity</span> + טבלת השוואה + מפות קשב (ממוצע על 3 זרעים).</li>
+      <li>דו"ח PDF עד 6 עמודים.</li>
+    </ul>
+    <div class="note">
+      <span class="k">שיטת העבודה — אבני דרך</span>
+      <p>בונים בשלבים ולא קופצים גבוה: <strong>בסיס</strong> (רשת רגילה + רשת המאמר + תקינות + מפות קשב) הוא כבר פרויקט שלם וניתן להגשה. אחר כך מוסיפים <strong>CBAM (רצוי)</strong>, ואם יש זמן <strong>scSE (מתיחה)</strong>. כל שלב עומד בפני עצמו — אם נגמר הזמן, מה שנבנה עדיין שלם.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">✦</span><h2>מילון מונחים מהיר</h2></div>
+    <dl>
+      <dt>סגמנטציה (Segmentation)</dt><dd>סימון בתמונה של הפיקסלים ששייכים לדבר שמחפשים (הנגע).</dd>
+      <dt>מסכה (Mask)</dt><dd>תמונת שחור-לבן: לבן = נגע, שחור = רקע.</dd>
+      <dt>U-Net</dt><dd>ארכיטקטורת רשת פופולרית לסגמנטציה של תמונות רפואיות.</dd>
+      <dt>שער קשב (Attention Gate)</dt><dd>רכיב שמלמד את הרשת להדגיש אזורים חשובים ולהחליש רקע.</dd>
+      <dt>Dice / IoU</dt><dd>ציונים (0–1) שמודדים חפיפה בין המסכה שלנו למסכת האמת.</dd>
+      <dt>Loss (פונקציית מחיר)</dt><dd>מספר שמודד כמה הרשת טעתה; באימון מנסים להקטין אותו.</dd>
+      <dt>Epoch</dt><dd>מעבר אחד מלא על כל תמונות האימון.</dd>
+      <dt>Fork</dt><dd>העתק של פרויקט קוד קיים, שאפשר להוסיף עליו.</dd>
+      <dt>Ablation</dt><dd>השוואה מבוקרת: מכבים רכיב (הקשב) כדי לבדוק כמה הוא תרם.</dd>
+      <dt>CBAM / scSE</dt><dd>מנגנוני קשב מודרניים שנשווה מול שער הקשב של המאמר.</dd>
+      <dt>Specificity</dt><dd>כמה טוב הרשת מזהה תמונה תקינה (בלי להמציא נגע).</dd>
+      <dt>זרע אקראי (Seed)</dt><dd>מספר שמקבע את האקראיות, כדי שנוכל לחזור על אותה הרצה בדיוק.</dd>
+    </dl>
+  </section>
+
+  <footer>
+    תוכנית מפושטת · מבוססת על <code>DESIGN.md</code> · מאמר המקור: Attention U-Net (Oktay et al., 2018)
+  </footer>
+
+</div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>סיור בקוד — Attention U-Net על אולטרסאונד שד</title>
+</head>
+<body>
+<style>
+  :root{
+    --bg:#eef3f3; --surface:#ffffff; --surface-2:#f6f9f9;
+    --ink:#14262b; --ink-soft:#4c6167; --ink-faint:#7c9096;
+    --border:#d8e2e3; --border-strong:#c2d1d3;
+    --accent:#0f7a84; --accent-ink:#0a5a62; --accent-tint:#e2f0f1;
+    --attn:#c9781f; --attn-ink:#a5620f; --attn-tint:#fbeed9;
+    --shadow:0 1px 2px rgba(20,38,43,.04), 0 6px 20px rgba(20,38,43,.06);
+    --radius:14px; --maxw:54rem;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans Hebrew","Arial Hebrew","Assistant",Arial,sans-serif;
+    --mono:"SF Mono",ui-monospace,"Menlo","Consolas",monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0c1618; --surface:#132123; --surface-2:#0f1c1e;
+      --ink:#e9f1f1; --ink-soft:#a6babd; --ink-faint:#748a8d;
+      --border:#233639; --border-strong:#2c4246;
+      --accent:#40b8c2; --accent-ink:#7ad6dd; --accent-tint:#12292c;
+      --attn:#e9a24e; --attn-ink:#f2bd7c; --attn-tint:#2a2114;
+      --shadow:0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#eef3f3; --surface:#ffffff; --surface-2:#f6f9f9;
+    --ink:#14262b; --ink-soft:#4c6167; --ink-faint:#7c9096;
+    --border:#d8e2e3; --border-strong:#c2d1d3;
+    --accent:#0f7a84; --accent-ink:#0a5a62; --accent-tint:#e2f0f1;
+    --attn:#c9781f; --attn-ink:#a5620f; --attn-tint:#fbeed9;
+    --shadow:0 1px 2px rgba(20,38,43,.04), 0 6px 20px rgba(20,38,43,.06);
+  }
+  :root[data-theme="dark"]{
+    --bg:#0c1618; --surface:#132123; --surface-2:#0f1c1e;
+    --ink:#e9f1f1; --ink-soft:#a6babd; --ink-faint:#748a8d;
+    --border:#233639; --border-strong:#2c4246;
+    --accent:#40b8c2; --accent-ink:#7ad6dd; --accent-tint:#12292c;
+    --attn:#e9a24e; --attn-ink:#f2bd7c; --attn-tint:#2a2114;
+    --shadow:0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box} body{margin:0}
+  .page{direction:rtl; text-align:right; background:var(--bg); color:var(--ink);
+    font-family:var(--font); font-size:17px; line-height:1.8; -webkit-font-smoothing:antialiased;
+    padding:clamp(1rem,4vw,2.5rem) 1rem 5rem;}
+  .wrap{max-width:var(--maxw); margin-inline:auto}
+  .hero{position:relative; overflow:hidden;
+    background:radial-gradient(120% 140% at 100% 0%, var(--accent-tint) 0%, transparent 55%), var(--surface);
+    border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:clamp(1.4rem,4vw,2.4rem); margin-bottom:1.6rem;}
+  .eyebrow{font-family:var(--mono); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--accent-ink); display:inline-flex; gap:.5ch; margin:0 0 .7rem;}
+  h1{font-size:clamp(1.5rem,4.5vw,2.2rem); line-height:1.25; margin:0 0 .5rem; letter-spacing:-.01em; text-wrap:balance;}
+  .lede{font-size:1.05rem; color:var(--ink-soft); margin:.2rem 0 0; max-width:46ch}
+  .meta{display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1.2rem}
+  .chip{font-family:var(--mono); font-size:.75rem; color:var(--ink-soft); background:var(--surface-2);
+    border:1px solid var(--border); padding:.32rem .7rem; border-radius:999px; white-space:nowrap;}
+  .chip b{color:var(--ink); font-weight:600}
+  section{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:clamp(1.2rem,3.5vw,1.9rem); margin-bottom:1.15rem;}
+  .sec-head{display:flex; align-items:baseline; gap:.7ch; margin:0 0 .3rem}
+  .sec-num{font-family:var(--mono); font-size:.8rem; font-weight:600; color:var(--accent-ink);
+    background:var(--accent-tint); border-radius:7px; padding:.12rem .5rem; flex:none;}
+  h2{font-size:1.28rem; margin:0; letter-spacing:-.01em; text-wrap:balance}
+  h3{font-size:1.02rem; margin:1.3rem 0 .35rem; color:var(--ink)}
+  h3 code{font-size:.9em}
+  p{margin:.55rem 0} .sub{color:var(--ink-soft)} strong{font-weight:650}
+  a{color:var(--accent-ink); text-underline-offset:2px}
+  code, .en{font-family:var(--mono); font-size:.86em; background:var(--surface-2); border:1px solid var(--border);
+    padding:.06em .42em; border-radius:6px; direction:ltr; unicode-bidi:isolate; white-space:nowrap;}
+  pre{direction:ltr; text-align:left; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:10px; padding:1rem 1.1rem; overflow-x:auto; font-family:var(--mono);
+    font-size:.8rem; line-height:1.55; margin:.8rem 0;}
+  pre code{background:none; border:none; padding:0; white-space:pre;}
+  ul,ol{margin:.5rem 0; padding-inline-start:1.3rem} li{margin:.3rem 0} li::marker{color:var(--accent)}
+  .call{background:var(--attn-tint); border:1px solid color-mix(in srgb, var(--attn) 35%, var(--border));
+    border-inline-start:4px solid var(--attn); border-radius:10px; padding:1rem 1.1rem; margin:1.1rem 0;}
+  .call .k{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--attn-ink); display:block; margin-bottom:.3rem;}
+  .call p{margin:.2rem 0}
+  .note{background:var(--accent-tint); border:1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+    border-inline-start:4px solid var(--accent); border-radius:10px; padding:1rem 1.1rem; margin:1.1rem 0;}
+  .note .k{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--accent-ink); display:block; margin-bottom:.3rem;}
+  .tbl-wrap{overflow-x:auto; margin:.8rem 0 .2rem; border:1px solid var(--border); border-radius:11px}
+  table{border-collapse:collapse; width:100%; font-size:.9rem; min-width:30rem}
+  th,td{padding:.55rem .8rem; text-align:right; border-bottom:1px solid var(--border); vertical-align:top}
+  thead th{background:var(--surface-2); color:var(--ink-soft); font-weight:600; font-size:.8rem;
+    text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--border-strong)}
+  tbody tr:last-child td{border-bottom:none}
+  td code, td .en{white-space:nowrap}
+  dl{margin:.4rem 0 0; display:grid; gap:.05rem}
+  dt{font-weight:650; color:var(--ink); margin-top:.6rem}
+  dd{margin:0 0 0 0; color:var(--ink-soft)}
+  .modcard{border:1px solid var(--border); border-radius:11px; padding:.5rem 1rem 1rem; background:var(--surface-2); margin-top:.8rem}
+  footer{color:var(--ink-faint); font-size:.85rem; text-align:center; margin-top:2rem}
+</style>
+
+<div class="page" lang="he">
+<div class="wrap">
+
+  <header class="hero">
+    <span class="eyebrow">🧭 סיור מודרך בקוד · גרסה מפושטת</span>
+    <h1>איך הפרויקט בנוי — מקצה לקצה</h1>
+    <p class="lede">מסמך אחד שמסביר בשפה פשוטה את כל מה שבנינו: הרעיון, כל קובץ קוד, הבדיקות, התוצאות עד כה, ומה נשאר — מספיק כדי להבין, לבקר בכנות, ולהמשיך. לא נדרש ניסיון קודם בלמידה עמוקה.</p>
+    <div class="meta">
+      <span class="chip">79 בדיקות <b>עוברות</b></span>
+      <span class="chip">שלבים 0–8 <b>הושלמו</b></span>
+      <span class="chip">מבוסס על <code>WALKTHROUGH.md</code></span>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">01</span><h2>התמונה ב-30 שניות</h2></div>
+    <p>לקחנו רעיון ממאמר — <span class="en">Attention U-Net</span>, רשת שמסמנת נגעים בתמונות רפואיות ו"לומדת איפה להסתכל" — והחלנו אותו על <strong>דומיין חדש</strong>: זיהוי נגעים בתמונות <strong>אולטרסאונד של השד</strong> (מאגר <span class="en">BUSI</span>). בנוסף אנחנו (א) משווים את הקשב של המאמר לשני מנגנוני קשב אחרים, (ב) בודקים שהרשת "שותקת" נכון על תמונות בריאות, ו-(ג) מציירים איפה כל מודל מסתכל.</p>
+    <p class="sub"><strong>סגמנטציה</strong> = לכל פיקסל להחליט "נגע או רקע?". הפלט הוא <strong>מסכה</strong> (תמונת שחור-לבן: לבן=נגע). משווים את מסכת הרשת למסכה שרופא סימן.</p>
+    <div class="note"><span class="k">שלושת המסמכים</span>
+      <p><code>DESIGN.md</code> = מה החלטנו ולמה · <code>PLAN.md</code> = תוכנית בנייה עם רשימת התקדמות · <strong>מסמך זה / <code>WALKTHROUGH.md</code></strong> = סיור ידידותי בקוד ובתוצאות.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">02</span><h2>מילון מונחים מהיר</h2></div>
+    <dl>
+      <dt>סגמנטציה (Segmentation)</dt><dd>תיוג כל פיקסל (כאן: נגע מול רקע).</dd>
+      <dt>מסכה (Mask)</dt><dd>תמונת 0/1 שמסמנת את אזור הנגע.</dd>
+      <dt>U-Net</dt><dd>מבנה רשת נפוץ לסגמנטציה: מקודד שמכווץ, מפענח שמשחזר, ו"קיצורי דרך" (skip) שמחברים ביניהם.</dd>
+      <dt>Skip connection</dt><dd>קיצור דרך שמעביר פרטים עדינים מהמקודד ישר למפענח.</dd>
+      <dt>שער קשב (Attention gate)</dt><dd>תוסף קטן שמסנן את ה-skip כדי להדגיש את האזור החשוב ולדכא רקע — לב המאמר.</dd>
+      <dt>CBAM / scSE</dt><dd>שני מנגנוני קשב אחרים שאנחנו משווים מול שער המאמר.</dd>
+      <dt>Dice / IoU</dt><dd>ציונים (0–1) לחפיפה בין המסכה שניבאנו לאמת. גבוה=טוב.</dd>
+      <dt>Loss</dt><dd>מספר שמודד כמה הרשת טועה כרגע; האימון מנסה להקטין אותו.</dd>
+      <dt>Epoch</dt><dd>מעבר אחד על כל תמונות האימון.</dd>
+      <dt>Seed</dt><dd>מספר שמקבע אקראיות כדי לשחזר הרצה.</dd>
+      <dt>Specificity</dt><dd>על תמונות בריאות — באיזו תדירות הרשת נכון מנבאת "כלום".</dd>
+    </dl>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">03</span><h2>מבנה הקוד</h2></div>
+    <p>הפרויקט הוא <span class="en">fork</span> (העתק) של קוד כותבי המאמר (<code>models/</code>, <code>dataio/</code> — נשמר לצורך קשר למאמר וכי אנחנו <strong>משתמשים בשער הקשב שלהם</strong>). <strong>כל הקוד שלנו נמצא ב-<code>busi/</code></strong>, והבדיקות ב-<code>tests/</code>.</p>
+    <pre><code>busi/                   הקוד שלנו
+  config.py             לוח הבקרה — כל ההגדרות במקום אחד
+  data.py               טעינת תמונות/מסכות, חלוקה, הגדלה, הזנה למודל
+  model.py              גרסאות ה-U-Net (בסיס + קשב) + factory
+  attention_modules.py  בלוקי CBAM ו-scSE (ההשוואה)
+  losses.py             Dice, Dice+CE (ברירת מחדל), Focal-Tversky
+  metrics.py            ציוני Dice / IoU / specificity / focus
+  train.py              לולאת האימון, הערכה, seed, בחירת מכשיר
+  experiment.py         תזמור: הרצת כל המודלים × seeds, טבלאות, תמונות
+  viz.py                ציור overlays ותמונות השוואה
+tests/                  קובץ בדיקות לכל מודול (79 בדיקות)
+project.ipynb           מחברת Colab שמריצה הכל
+splits/split.json       חלוקת train/val/test קבועה (ב-git = ניתן לשחזור)
+data/BUSI/              המאגר (לא ב-git — יורדים בנפרד)</code></pre>
+    <p class="sub"><strong>הכול נשלט מ-<code>busi/config.py</code>.</strong> כדי להריץ מודל אחר או לשנות הגדרה — עורכים קובץ אחד. כמעט אף פעם לא נוגעים בשאר הקבצים כדי להריץ ניסויים.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">04</span><h2>זרימת הדאטה (מקצה לקצה)</h2></div>
+    <pre><code>תמונות BUSI  ->  list_busi_samples  ->  make_split (train/val/test)
+             ->  BUSIDataset (קריאה, שינוי גודל, הגדלה)
+             ->  DataLoader  ->  מודל  ->  loss  ->  עדכון משקולות
+             ->  evaluate (Dice/IoU/specificity)  ->  results JSON + תמונות</code></pre>
+    <p class="sub">כל חץ הוא פונקציה שאפשר לפתוח ולקרוא. קראו מלמעלה למטה כדי להבין את המסלול.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">05</span><h2>מודול אחר מודול (החלק החשוב)</h2></div>
+
+    <div class="modcard">
+      <h3><code>config.py</code> — לוח הבקרה</h3>
+      <p>מחלקה אחת (<code>Config</code>) עם <strong>כל</strong> ההגדרות: איזה מודל, איזה loss, גודל תמונה, קצב למידה, epochs, seeds, נתיבים, עוצמת הגדלה. מאמתת בחירות (דוחה שם מודל לא קיים) ויודעת לשמור/לטעון את עצמה כ-JSON (שחזוריות). הכפתור הכי נפוץ: <code>model_name</code>.</p>
+    </div>
+
+    <div class="modcard">
+      <h3><code>data.py</code> — הכנסת תמונות למודל</h3>
+      <ul>
+        <li><code>list_busi_samples</code> — מוצא כל תמונה ומזווג אותה למסכות שלה (נתיבים יחסיים → נייד בין מחשבים).</li>
+        <li><code>merge_masks</code> — ממזג כמה מסכות ל-0/1 אחת; תמונה בריאה → מסכת אפסים. <strong>שינוי גודל המסכה ב-nearest-neighbor כדי שתישאר חדה 0/1</strong> (נקודת נכונות חשובה).</li>
+        <li><code>make_split</code> — 70/15/15, <strong>stratified</strong> (שומר יחסי מחלקות), seed קבוע → זהה בכל פעם.</li>
+        <li><code>build_transforms</code> — שינוי גודל + (באימון) היפוכים/סיבובים/בהירות, <strong>זהה לתמונה ולמסכה</strong> כדי שיישארו מיושרות.</li>
+        <li><code>BUSIDataset</code> — מחזיר <code>(תמונה, מסכה, תווית)</code>; התווית (שפיר/ממאיר/תקין) דרושה כדי לנקד תמונות בריאות בנפרד.</li>
+      </ul>
+    </div>
+
+    <div class="modcard">
+      <h3><code>model.py</code> — הרשתות</h3>
+      <ul>
+        <li><code>AttentionUNet2D</code> — הגרסה הדו-ממדית שלנו לרשת המאמר: U-Net עם <strong>בלוק קשב מתחלף</strong> על ה-skip, ו-deep supervision. יכולה להחזיר את מפות הקשב כדי לראות איפה היא מסתכלת.</li>
+        <li><code>get_model(name)</code> — ה-factory. <code>unet</code>=בסיס בלי קשב; <code>attention_unet</code>=שער המאמר; <code>cbam_unet</code>/<code>scse_unet</code>=אותו גוף עם CBAM/scSE.</li>
+        <li><strong>כל הגרסאות חולקות גוף אחד; רק בלוק הקשב משתנה</strong> — כך ההשוואה הוגנת.</li>
+      </ul>
+    </div>
+
+    <div class="modcard">
+      <h3><code>attention_modules.py</code> — שני מנגנוני הקשב החלופיים</h3>
+      <p><code>CBAM2D</code> (קשב ערוצים + קשב מרחבי) ו-<code>scSE2D</code> (קשב קליל ממחקר רפואי). שניהם מצייתים לאותו "חוזה" כמו שער המאמר: <code>forward(x, g) -> (x מסונן, מפת קשב)</code>. מפת הקשב (0–1) היא מה שאנחנו מציירים.</p>
+    </div>
+
+    <div class="modcard">
+      <h3><code>losses.py</code> — איך מודדים "טעות"</h3>
+      <ul>
+        <li><code>SoftDiceLoss2D</code> — ה-Dice של המאמר, מותאם לכל מכשיר (המקור היה נעול ל-GPU של NVIDIA).</li>
+        <li><code>DiceCELoss</code> — <strong>ברירת המחדל שלנו</strong>: Dice + Cross-Entropy. גילינו ש-Dice לבד נכשל כאן (ראו סעיף 7); CE מוסיף אות חזק לכל פיקסל.</li>
+        <li><code>focal_tversky_loss</code> — חלופה שמענישה חזק יותר על נגע שפוספס (טוב לנגעים קטנים).</li>
+      </ul>
+    </div>
+
+    <div class="modcard">
+      <h3><code>metrics.py</code> — איך מנקדים תוצאות</h3>
+      <ul>
+        <li><code>dice_score</code>, <code>iou_score</code> — ציוני חפיפה, עם כללים למסכות ריקות (שתיהן ריקות → 1.0; ניבוי נגע על תמונה בריאה → 0.0).</li>
+        <li><code>specificity_on_normals</code> — על תמונות בריאות, כמה פעמים הרשת נכון ניבאה כמעט-כלום. <strong>זה המספר ל"האם היא נמנעת מאזעקות שווא".</strong></li>
+        <li><code>attention_focus_ratio</code> — כמה מהקשב נחת בתוך הנגע האמיתי (0–1) — כימות של "היא מסתכלת במקום הנכון".</li>
+      </ul>
+    </div>
+
+    <div class="modcard">
+      <h3><code>train.py</code> — מנוע האימון</h3>
+      <ul>
+        <li><code>set_seed</code>, <code>get_device</code> (בוחר אוטומטית GPU→Apple→CPU).</li>
+        <li><code>train_one_epoch</code> — מעבר אחד: ניבוי, מדידת loss, עדכון משקולות.</li>
+        <li><code>evaluate</code> — מחזיר Dice/IoU של נגעים <strong>וגם</strong> specificity, <strong>מופרד לפי סוג תמונה</strong> כדי שתמונות בריאות לא ינפחו את הציון.</li>
+        <li><code>fit</code> — הלולאה המלאה: מאמן, עוקב אחר Dice בוולידציה, מוריד קצב למידה בקיפאון, <strong>עוצר מוקדם</strong>, ושומר את המודל הטוב ביותר.</li>
+      </ul>
+    </div>
+
+    <div class="modcard">
+      <h3><code>experiment.py</code> — הרצת כל המחקר</h3>
+      <ul>
+        <li><code>run_experiment</code> — מודל אחד, seed אחד: אימון → בחירת הטוב ביותר → ניקוד על מבחן.</li>
+        <li><code>run_seeds</code> — חוזר על 3 seeds ומדווח <strong>ממוצע ± סטיית תקן</strong> (כדי שתוצאה לא תהיה מזל). שומר <code>results/&lt;model&gt;.json</code>.</li>
+        <li><code>make_results_table</code> — טבלת ההשוואה לדו"ח; <code>save_prediction_figures</code> — תמונות תוצאה+קשב.</li>
+      </ul>
+    </div>
+
+    <div class="modcard">
+      <h3><code>viz.py</code> — תמונות</h3>
+      <p><code>overlay_mask</code>, <code>overlay_attention</code>, <code>plot_prediction</code> — מציירים מסכות ומפות-קשב מעל הסריקה ומרכיבים את תמונת ההשוואה.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">06</span><h2>הבדיקות (למה אפשר לסמוך על הקוד)</h2></div>
+    <p>כתבנו בדיקה כמעט לכל פונקציה — <strong>79 בדיקות, כולן עוברות</strong> — והן רצות <strong>בלי הדאטה</strong> (בונות תמונות מזויפות זעירות). הרצה:</p>
+    <pre><code>cd attention-busi
+PYTORCH_ENABLE_MPS_FALLBACK=1 .venv/bin/python -m pytest -q</code></pre>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>קובץ בדיקות</th><th>בודק ש…</th></tr></thead>
+      <tbody>
+        <tr><td><code>test_data.py</code></td><td>זיווג תמונה/מסכה, מיזוג, מסכות נשארות 0/1, אין דליפה בין קבוצות, החלוקה ניתנת לשחזור</td></tr>
+        <tr><td><code>test_model.py</code></td><td>כל רשת מחזירה גודל נכון, מפות קשב 0–1, גרדיאנטים זורמים, אתחול ניתן לשחזור</td></tr>
+        <tr><td><code>test_attention_modules.py</code></td><td>CBAM ו-scSE מצייתים לחוזה, נבנים לתוך ה-U-Net, מייצרים מפות תקינות</td></tr>
+        <tr><td><code>test_losses.py</code></td><td>Dice≈0 כשמושלם / ≈1 כששגוי, Dice+CE ו-Focal-Tversky מתנהגים</td></tr>
+        <tr><td><code>test_metrics.py</code></td><td>בדיקות ערך ידוע (Dice=0.667, IoU=0.5), כללי מסכה ריקה, specificity</td></tr>
+        <tr><td><code>test_train.py</code></td><td><strong>overfit על אצווה אחת מגיע ל-Dice&gt;0.95</strong> (בדיקת השפיות המרכזית)</td></tr>
+        <tr><td><code>test_experiment.py</code></td><td>כל הצינור run→aggregate→table→figures עובד מקצה לקצה על דאטה מזויף</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note"><span class="k">הבדיקה הכי חשובה</span>
+      <p><code>test_overfit_one_batch</code>: אם הרשת לא מצליחה "לשנן" קומץ תמונות — משהו שבור מהיסוד. המעבר שלה הוא ראיה חזקה שהצנרת תקינה.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">07</span><h2>תוצאות עד כה (דאטה אמיתי)</h2></div>
+    <p>הורדנו את BUSI (אומת: 437 שפיר / 210 ממאיר / 133 תקין = 780) והרצנו אימון קצר על המחשב (Apple MPS, ~14 שנ'/epoch).</p>
+    <p><strong>הרצת אימות — <span class="en">attention_unet</span>, Dice+CE, 40 epochs, seed 42:</strong></p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>מדד</th><th>ערך (מבחן)</th></tr></thead>
+      <tbody>
+        <tr><td>Dice (נגע)</td><td><strong>0.781</strong></td></tr>
+        <tr><td>IoU (נגע)</td><td>0.698</td></tr>
+        <tr><td>Specificity (בריאות)</td><td><strong>0.950</strong></td></tr>
+        <tr><td>Dice שפיר / ממאיר</td><td>0.811 / 0.718</td></tr>
+      </tbody>
+    </table></div>
+    <p class="sub">מספרים ריאליים ל-BUSI. המספרים הסופיים יגיעו מההרצות המלאות ב-Colab.</p>
+    <div class="call"><span class="k">שני ממצאים לדו"ח ("אתגרים")</span>
+      <p><strong>1. קצב למידה 1e-2 מקריס; 1e-3 עובד.</strong> ב-1e-2 הרשת נתקעת על ניבוי רקע בלבד. אנחנו משתמשים ב-1e-3.<br>
+      <strong>2. Loss של Dice בלבד נכשל על BUSI; Dice+CE פותר.</strong> עם Dice בלבד ה-<span class="en">attention_unet</span> נתקע על Dice=0 ל-16 epochs. הוספת Cross-Entropy הגיעה ל-~0.62 ב-12 epochs. שמרנו את Dice הטהור כאופציה — הקריסה עצמה היא תוצאה לדיווח.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">08</span><h2>איך מריצים · מה נשאר</h2></div>
+    <h3>הרצה מהירה מקומית (~2 דק')</h3>
+    <p>ב-<code>project.ipynb</code> שנו <code>QUICK=True</code>, או:</p>
+    <pre><code>from busi.config import Config
+from busi import experiment as E
+E.run_seeds("attention_unet", cfg=Config(epochs=3), seeds=[42])</code></pre>
+    <h3>ב-Colab (ההרצות האמיתיות)</h3>
+    <p>פותחים <code>project.ipynb</code>, מריצים את תא ה-bootstrap (clone של הריפו הפרטי עם token, mount ל-Drive עבור הדאטה), ואז את תאי הניסוי. <code>MODELS</code> כבר כולל את כל 4 הגרסאות.</p>
+    <h3>מה נשאר</h3>
+    <ul>
+      <li>להריץ את המטריצה המלאה ב-Colab (4 מודלים × 3 seeds; ואופציונלי השוואת loss).</li>
+      <li>לכתוב את הדו"ח (עד 6 עמ') — כולל שני הממצאים למעלה.</li>
+      <li>אריזה להגשה: <code>requirements.txt</code> נעוץ, הוראות דאטה, הרצת Colab נקייה, ואז <code>id1_id2.zip</code>.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">09</span><h2>איך לבקר את העבודה (תהיו קשוחים)</h2></div>
+    <ul>
+      <li><strong>האם ההשוואה הוגנת?</strong> כל הגרסאות חולקות גוף, חלוקה, seeds ו-loss — רק בלוק הקשב משתנה. בדקו ב-<code>model.py</code>/<code>experiment.py</code>.</li>
+      <li><strong>האם החלוקה כנה?</strong> אף תמונה לא בשתי קבוצות, וציוני תמונות בריאות מדווחים בנפרד (specificity), לא מעורבבים ב-Dice. ראו <code>test_split_no_leakage</code> ו-<code>evaluate</code>.</li>
+      <li><strong>האם הממצאים אמיתיים?</strong> הקריסות (lr, Dice טהור) — האם משוחזרות? (הסקריפטים פשוטים להרצה חוזרת.)</li>
+      <li><strong>מגבלות שכדאי לציין בכנות:</strong> מאגר קטן (780, proof-of-concept); ל-BUSI יש כפילויות/אי-דיוקי תיוג ידועים; אנחנו מאמנים מאפס (בלי pretraining); מפות קשב הן מרמזות, לא הוכחה; תלות בחלוקה קבועה אחת (מרוככת ב-3 seeds, לא cross-validation).</li>
+      <li><strong>איפה באגים יכולים להתחבא:</strong> אינטרפולציית מסכה (חייבת nearest), כללי מסכה ריקה, וספירת ערוצים במפענח. לכל אחד יש בדיקה — קראו ונסו לשבור.</li>
+    </ul>
+    <p class="sub">אם משהו כאן לא תואם את הקוד — סמכו על הקוד וספרו לנו. זו בדיוק הביקורת שאנחנו רוצים.</p>
+  </section>
+
+  <footer>סיור בקוד · מבוסס על <code>WALKTHROUGH.md</code> · פרטים מלאים ב-<code>DESIGN.md</code> ו-<code>PLAN.md</code></footer>
+
+</div>
+</div>
+
+</body>
+</html>
