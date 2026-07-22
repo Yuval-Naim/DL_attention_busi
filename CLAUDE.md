@@ -8,6 +8,7 @@ segmentation** (extension of Oktay et al., 2018). Working, tested codebase.
 - **`WALKTHROUGH.md`** — plain-language tour of all the code, the tests, the results so far, and how to critique the work.
 - **`DESIGN.md`** — every locked design decision and why.
 - **`PLAN.md`** — the step-by-step build plan with a progress checklist (what's done, what's next).
+- **`CHANGES_VS_ORIGINAL.md`** — exactly what we changed vs the original forked repo (what's "ours" vs "theirs").
 
 ## Essentials
 - All our code is in `busi/`; tests in `tests/`. Everything is driven by `busi/config.py` (switch model/loss/params there).
