@@ -165,17 +165,29 @@ Most-changed knob: `model_name` ∈ {`unet`, `attention_unet`, `cbam_unet`,
   specificity, **split by image type** so healthy images never inflate the lesion
   score.
 - `fit` — the full loop: trains, watches validation Dice, lowers the learning rate
-  when it plateaus, **stops early** if it stops improving, and saves the best
-  model.
+  when it plateaus, **stops early** if it stops improving, saves the best model,
+  and **saves a resume checkpoint every epoch** (so a crash mid-training can be
+  continued — see "Crash-safety" below). Prints progress every epoch.
 
 ### `experiment.py` — running the whole study
 - `build_loaders` — makes the train/val/test DataLoaders from the saved split.
 - `run_experiment` — one model, one seed: train → pick best → score on test.
-- `run_seeds` — repeats over 3 seeds and reports **mean ± standard deviation**
-  (so a result isn't just luck). Saves `results/<model>.json`.
+  **Crash-safe:** if this seed's result JSON already exists it is *skipped*;
+  otherwise training *resumes* from any partial checkpoint left by a crash.
+- `run_seeds` — repeats over the seeds and reports **mean ± standard deviation**
+  (so a result isn't just luck). Saves `results/<model>.json`. A failing seed is
+  logged and skipped rather than killing the batch.
+- `collect_results` — loads whatever per-model results exist (so the table works
+  even from a partially-finished run).
 - `make_results_table` — the markdown comparison table for the report.
 - `save_prediction_figures` — the image | ground-truth | prediction | attention
   figures for the report.
+
+**Crash-safety (why a Colab disconnect can't hurt you):** `fit` saves the best
+weights *and* a full resume checkpoint (model+optimizer+epoch+history) to
+`checkpoints_dir` every epoch; point that (and `results_dir`) at Google Drive.
+On a disconnect, just re-run — finished seeds skip, the in-progress one resumes
+from its last epoch. Progress is also printed live per epoch.
 
 ### `viz.py` — pictures
 - `overlay_mask`, `overlay_attention`, `plot_prediction` — draw masks and attention
@@ -244,17 +256,19 @@ Dice). Specificity 0.95 = it correctly stays silent on ~95% of healthy scans.
 
 ## 8. How to run it yourself
 
-**Locally (fast smoke, ~2 min):** in `project.ipynb` set `QUICK=True`, or:
+**On Colab (the real runs — GPU):** open `project.ipynb` and run top-to-bottom:
+bootstrap (clone public repo + install) → mount Drive + set paths → data check →
+**KNOBS** cell (edit `EPOCHS`/`PATIENCE`/`SEEDS`/`MODELS`/`QUICK`; PoC defaults are
+50 / 8 / 3-seeds) → **one cell per model** → results table + figures. Outputs go to
+Drive. **If it disconnects, re-run — finished seeds skip, the in-progress one
+resumes.** PoC run ≈ ~1–1.5 h on a T4.
+
+**Locally (fast smoke, ~2 min):** set `QUICK=True` in the notebook, or:
 ```python
 from busi.config import Config
 from busi import experiment as E
 E.run_seeds("attention_unet", cfg=Config(epochs=3), seeds=[42])
 ```
-
-**On Colab (the real runs — GPU, faster):** open `project.ipynb`, run the bootstrap
-cell (clone private repo with a GitHub token in Colab Secrets, mount Drive for the
-data), then the experiment cells. `MODELS` already lists all four variants. Full
-matrix (4 models × 3 seeds) ≈ a couple of hours on a free GPU.
 
 ---
 

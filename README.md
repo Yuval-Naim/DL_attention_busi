@@ -9,7 +9,9 @@ This repo is derived from the authors' MIT-licensed code
 (https://github.com/ozan-oktay/Attention-Gated-Networks, kept as the `upstream`
 git remote). Our code lives under `busi/`.
 
-> **Status:** setup stage. See `../PLAN.md` for the full task plan and progress.
+> **Status:** code complete & tested (crash-safe, resumable); running the PoC
+> experiments on Colab, then the report. See `PLAN.md` for the full plan/progress
+> and `HANDOFF.md` for setup + how to run.
 
 ## Everything is config-driven
 
@@ -65,5 +67,9 @@ it in the report.
 
 ## Running experiments
 
-The Colab notebook `project.ipynb` orchestrates: clone → data → runs → figures.
-See `../PLAN.md` (Stage 6) for the milestone experiment matrix.
+The Colab notebook `project.ipynb` orchestrates everything and is **crash-safe &
+resumable**: bootstrap → mount Drive → data check → **KNOBS** (edit
+`EPOCHS`/`PATIENCE`/`SEEDS`/`MODELS`) → **one cell per model** → results + figures.
+Outputs are saved to Drive every epoch; if Colab disconnects, re-run the cells —
+finished seeds skip and the in-progress one resumes. PoC defaults: 50 epochs,
+patience 8, 3 seeds (≈ 1–1.5 h on a T4). See `HANDOFF.md` §4 and `PLAN.md`.
