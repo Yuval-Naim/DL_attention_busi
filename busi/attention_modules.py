@@ -1,5 +1,4 @@
 """Alternative attention modules for the comparison study.
-See DESIGN.md sec. 3 (attention variants) and PLAN.md Stages 7-8.
 
 These plug into the same backbone as the paper's additive gate via the shared
 skip-module contract:

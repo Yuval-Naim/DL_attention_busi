@@ -1,4 +1,4 @@
-"""Models. See DESIGN.md sec. 3 and PLAN.md Stage 2.
+"""Models.
 
 A single 2D U-Net backbone (with deep supervision) whose *skip-attention module*
 is swappable, so all variants are compared fairly:

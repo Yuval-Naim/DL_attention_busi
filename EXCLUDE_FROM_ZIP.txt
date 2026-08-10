@@ -1,0 +1,68 @@
+EXCLUDE FROM THE SUBMISSION ZIP (id1_id2.zip)
+=============================================
+Internal / team-only files and build junk. Everything NOT listed here ships,
+including all of the original authors' files (their code is our lineage to the
+paper - do not prune it).
+
+
+1. BUILD JUNK & LOCAL STATE  (nothing here belongs in a submission)
+------------------------------------------------------------------
+.git/
+.venv/
+data/                        # BUSI dataset - not submitted (instructions allow this)
+__pycache__/                 # every level, including busi/, tests/, models/...
+.pytest_cache/
+.DS_Store                    # every level
+*.egg-info/
+
+
+2. OUR INTERNAL DOCS  (written for the team, no value to a grader)
+-----------------------------------------------------------------
+CLAUDE.md                    # instructions for the AI assistant
+HANDOFF.md                   # team onboarding (git remotes, setup)
+PLAN.md                      # build plan with progress checkboxes
+DESIGN.md                    # design decisions (the report covers the reasoning)
+WALKTHROUGH.md               # plain-language code tour for the team
+CHANGES_VS_ORIGINAL.md       # ours-vs-authors' breakdown (folded into README)
+EXCLUDE_FROM_ZIP.txt         # this file
+.gitignore                   # meaningless without .git
+docs/changes_he.html         # Hebrew explainer
+docs/overview_he.html        # Hebrew explainer
+docs/walkthrough_he.html     # Hebrew explainer
+
+
+3. CHECKPOINTS  (exclude all)
+-----------------------------
+checkpoints/
+    -> Model weights are not required by the course instructions, and the
+       notebook cannot use them from the zip anyway: cells 17-18 read
+       `{OUT_DIR}/checkpoints` on Drive (see cell 10), never the zip's
+       checkpoints/ folder. Including one would add ~10 MB for nothing.
+
+
+WHAT MUST BE IN THE ZIP
+-----------------------
+report.pdf                   # required by the course instructions
+project.ipynb                # the implementation
+README.md                    # how to run it, ours-vs-authors' code, attribution
+LICENSE  requirements.txt  pytest.ini  setup.py
+busi/                        # our code
+tests/                       # our tests
+splits/split.json            # the persisted 546/117/117 split
+results/                     # ships empty (.gitkeep) - see the optional note below
+figures/                     # reference figures from the paper
+models/  dataio/  utils/  configs/    # the authors' original code
+train_*.py  test_classification.py  validation.py  visualise_*.py   # authors' scripts
+
+
+BEFORE ZIPPING
+--------------
+[ ] report.pdf is in the zip root  (REQUIRED by the course instructions)
+[ ] project.ipynb still has its saved outputs - the training logs and the
+    results table. That is where a grader SEES our results, because the
+    notebook reads metrics from Drive, not from the zip. Do not clear outputs.
+[ ] the zip contains ONE top-level folder named id1_id2, with project.ipynb
+    inside it
+[ ] optional: copy MyDrive/busi_out/results/*.json into results/ as evidence.
+    Note the notebook will NOT display them - cells 17-18 read
+    `{OUT_DIR}/results` on Drive. They are reference files only.

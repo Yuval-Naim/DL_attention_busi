@@ -1,4 +1,4 @@
-"""Loss functions. See DESIGN.md sec. 4 and PLAN.md Stage 3.
+"""Loss functions.
 
 Why Soft Dice (the primary loss)?
     Lesion segmentation is heavily class-imbalanced at the pixel level — the

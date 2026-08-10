@@ -1,6 +1,6 @@
-"""Data pipeline for BUSI. See DESIGN.md sec. 2 and PLAN.md Stage 1.
+"""Data pipeline for BUSI.
 
-Locked decisions (DESIGN.md sec. 0):
+Locked decisions:
 - Include normal images (Option B). Real BUSI normal images ship with an
   all-black mask; some lesion images have multiple masks. We handle both:
   merge all mask files (logical OR); black or absent -> all-zero mask.

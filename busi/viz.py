@@ -1,4 +1,4 @@
-"""Visualization for the report. See DESIGN.md sec. 7 and PLAN.md Stage 5.
+"""Visualization for the report.
 
 Two overlay helpers return plain RGB arrays (no plotting backend needed, so
 they're trivial to test and to embed anywhere), plus one figure builder:

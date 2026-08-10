@@ -1,4 +1,4 @@
-"""Evaluation metrics. See DESIGN.md sec. 5 and PLAN.md Stage 3.
+"""Evaluation metrics.
 
 Three families, each answering a different question:
 

@@ -1,4 +1,4 @@
-"""Experiment orchestration. See DESIGN.md sec. 8 and PLAN.md Stage 6.
+"""Experiment orchestration.
 
 This is the glue that turns the building blocks (data / model / train / metrics /
 viz) into reproducible, multi-seed experiments and report artifacts. The notebook

@@ -1,4 +1,4 @@
-"""Training & evaluation. See DESIGN.md sec. 6 and PLAN.md Stage 4.
+"""Training & evaluation.
 
 Design choices & justification:
 - **Device-agnostic** (`cuda -> mps -> cpu`) so the exact same code runs on the

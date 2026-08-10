@@ -298,7 +298,7 @@ Structured by milestone (§0). Every run uses the **same split + same training b
 - Run: all unit tests, overfit-one-batch, short runs, viz development.
 
 **Colab (T4, CUDA)** — the required + final environment:
-- `!git clone <fork>`; mount Drive for BUSI data + checkpoints (sessions are ephemeral, ~12h limit).
+- Runs **from the submitted code** (a folder or `.zip` on Drive — no clone, since no GitHub link is submitted); mount Drive for BUSI data + checkpoints (sessions are ephemeral, ~12h limit).
 - Run: the milestone experiments (Core → Desired → Stretch), produce all report figures/tables.
 
 **Portability rule:** all logic in `busi/*.py`, device auto-selected; the notebook only orchestrates. Same files run both places.

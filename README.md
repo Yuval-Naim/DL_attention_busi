@@ -5,13 +5,28 @@ Course project (Medical Images Processing with Deep Learning, 336033). We extend
 lesion segmentation on the **BUSI** dataset — and compare attention mechanisms
 (additive gate vs CBAM vs scSE).
 
-This repo is derived from the authors' MIT-licensed code
-(https://github.com/ozan-oktay/Attention-Gated-Networks, kept as the `upstream`
-git remote). Our code lives under `busi/`.
+This code is derived from the authors' MIT-licensed implementation
+(https://github.com/ozan-oktay/Attention-Gated-Networks); their `LICENSE` is
+retained.
 
-> **Status:** code complete & tested (crash-safe, resumable); running the PoC
-> experiments on Colab, then the report. See `PLAN.md` for the full plan/progress
-> and `HANDOFF.md` for setup + how to run.
+## Ours vs. the authors' code
+
+**Ours:** everything in `busi/`, `tests/`, and `project.ipynb`.
+
+**From the authors** we import exactly four modules — our link to the paper:
+
+- `models/layers/grid_attention_layer.py` → `GridAttentionBlock2D`, the paper's attention gate
+- `models/networks/utils.py` → `unetConv2`, `unetUp` (conv / upsample blocks)
+- `models/networks_other.py` → `init_weights`
+- `models/networks/unet_2D.py` → plain 2D U-Net, used verbatim as our ablation baseline
+
+Their remaining files (3D/CT networks, SonoNet classification, `dataio/`,
+`utils/`, `configs/`, the root-level `train_*.py` / `visualise_*.py`) are not
+used by our extension; they are included unchanged so the lineage is verifiable.
+
+> **How to run it:** see **section 1 of `project.ipynb`** — it runs on Colab
+> straight from this submitted folder (or its `.zip`), with nothing cloned or
+> downloaded from GitHub. The training loop is crash-safe and resumable.
 
 ## Everything is config-driven
 
@@ -46,13 +61,6 @@ pytest -q            # run the test suite
 
 If Python 3.13 causes wheel issues, use a 3.11/3.12 virtualenv.
 
-## Hebrew guides (open in a browser)
-
-Plain-language overviews for the team, in `docs/` — just open the `.html` files:
-- `docs/overview_he.html` — plan, roadmap, status & first results
-- `docs/walkthrough_he.html` — guided tour of all the code, tests, results
-- `docs/changes_he.html` — exactly what we changed vs the original repo
-
 ## Data (BUSI)
 
 The dataset is **not** committed or submitted — it is **downloaded at runtime**.
@@ -72,4 +80,4 @@ resumable**: bootstrap → mount Drive → data check → **KNOBS** (edit
 `EPOCHS`/`PATIENCE`/`SEEDS`/`MODELS`) → **one cell per model** → results + figures.
 Outputs are saved to Drive every epoch; if Colab disconnects, re-run the cells —
 finished seeds skip and the in-progress one resumes. PoC defaults: 50 epochs,
-patience 8, 3 seeds (≈ 1–1.5 h on a T4). See `HANDOFF.md` §4 and `PLAN.md`.
+patience 8, 3 seeds (≈ 1–1.5 h per model on a T4).

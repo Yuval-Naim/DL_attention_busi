@@ -1,5 +1,7 @@
-# Core deep-learning stack. Versions are lower-bounds during development;
-# pin to exact resolved versions at submission time (PLAN.md T9.2).
+# Core deep-learning stack, as lower bounds. Deliberately not pinned to exact
+# versions: the same code runs on Colab's managed GPU stack and on a local
+# machine (incl. Apple-Silicon MPS builds), and exact pins would force Colab to
+# reinstall a PyTorch it already has.
 torch>=2.6
 torchvision>=0.21
 numpy>=1.26,<3
